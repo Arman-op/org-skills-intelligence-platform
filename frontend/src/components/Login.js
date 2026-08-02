@@ -1,17 +1,45 @@
 import React, { useState } from 'react';
+import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    console.log('Logging in with:', username, password);
+    setError('');
+
+    try {
+      // Send login request to the Spring Boot backend API
+      const response = await axios.post('http://localhost:8080/api/auth/login', {
+        username,
+        password,
+      });
+
+      // Save the returned JWT token and role in localStorage
+      const { token, role } = response.data;
+      localStorage.setItem('token', token);
+      localStorage.setItem('role', role);
+
+      // Redirect user based on their role
+      if (role === 'ROLE_ADMIN') {
+        navigate('/admin');
+      } else {
+        navigate('/dashboard');
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setError('Invalid username or password, or backend is unreachable.');
+    }
   };
 
   return (
-    <div style={{ padding: '20px' }}>
+    <div style={{ padding: '20px', maxWidth: '400px' }}>
       <h2>Login</h2>
+      {error && <p style={{ color: 'red' }}>{error}</p>}
       <form onSubmit={handleLogin}>
         <div>
           <label>Username: </label>
