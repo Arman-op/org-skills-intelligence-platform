@@ -2,6 +2,7 @@ package com.orgskills.intelligence.controller;
 
 import com.orgskills.intelligence.dto.notification.NotificationResponse;
 import com.orgskills.intelligence.service.NotificationService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -13,13 +14,10 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/notifications")
+@RequiredArgsConstructor
 public class NotificationController {
 
     private final NotificationService notificationService;
-
-    public NotificationController(NotificationService notificationService) {
-        this.notificationService = notificationService;
-    }
 
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<NotificationResponse>> getByUser(@PathVariable Long userId) {

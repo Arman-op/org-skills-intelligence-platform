@@ -17,6 +17,7 @@ import com.orgskills.intelligence.repository.MentorshipMatchRepository;
 import com.orgskills.intelligence.repository.SkillRepository;
 import com.orgskills.intelligence.repository.UserRepository;
 import com.orgskills.intelligence.repository.UserSkillRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -24,6 +25,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
+@RequiredArgsConstructor
 public class MentorshipService {
 
     private final UserRepository userRepository;
@@ -32,20 +34,6 @@ public class MentorshipService {
     private final GapAnalysisRepository gapAnalysisRepository;
     private final MentorshipMatchRepository mentorshipMatchRepository;
     private final NotificationService notificationService;
-
-    public MentorshipService(UserRepository userRepository,
-                             SkillRepository skillRepository,
-                             UserSkillRepository userSkillRepository,
-                             GapAnalysisRepository gapAnalysisRepository,
-                             MentorshipMatchRepository mentorshipMatchRepository,
-                             NotificationService notificationService) {
-        this.userRepository = userRepository;
-        this.skillRepository = skillRepository;
-        this.userSkillRepository = userSkillRepository;
-        this.gapAnalysisRepository = gapAnalysisRepository;
-        this.mentorshipMatchRepository = mentorshipMatchRepository;
-        this.notificationService = notificationService;
-    }
 
     @Transactional
     public MentorshipMatchResponse createMatch(MentorshipMatchRequest request) {
@@ -92,16 +80,16 @@ public class MentorshipService {
     }
 
     private MentorshipMatchResponse toResponse(MentorshipMatch match) {
-        MentorshipMatchResponse response = new MentorshipMatchResponse();
-        response.setId(match.getId());
-        response.setMenteeId(match.getMentee().getId());
-        response.setMenteeName(match.getMentee().getFullName());
-        response.setMentorId(match.getMentor().getId());
-        response.setMentorName(match.getMentor().getFullName());
-        response.setSkillId(match.getTargetSkill().getId());
-        response.setSkillName(match.getTargetSkill().getName());
-        response.setStatus(match.getStatus());
-        response.setCreatedAt(match.getCreatedAt());
-        return response;
+        return MentorshipMatchResponse.builder()
+                .id(match.getId())
+                .menteeId(match.getMentee().getId())
+                .menteeName(match.getMentee().getFullName())
+                .mentorId(match.getMentor().getId())
+                .mentorName(match.getMentor().getFullName())
+                .skillId(match.getTargetSkill().getId())
+                .skillName(match.getTargetSkill().getName())
+                .status(match.getStatus())
+                .createdAt(match.getCreatedAt())
+                .build();
     }
 }

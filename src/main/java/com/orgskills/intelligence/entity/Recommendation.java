@@ -11,12 +11,22 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.Instant;
 
 @Entity
 @Table(name = "recommendations")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class Recommendation {
 
     @Id
@@ -56,102 +66,14 @@ public class Recommendation {
     @Column(nullable = false)
     private Instant updatedAt;
 
-    @jakarta.persistence.PrePersist
+    @PrePersist
     public void prePersist() {
         this.createdAt = Instant.now();
         this.updatedAt = this.createdAt;
     }
 
-    @jakarta.persistence.PreUpdate
+    @PreUpdate
     public void preUpdate() {
         this.updatedAt = Instant.now();
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public void setUser(User user) {
-        this.user = user;
-    }
-
-    public GapAnalysis getGap() {
-        return gap;
-    }
-
-    public void setGap(GapAnalysis gap) {
-        this.gap = gap;
-    }
-
-    public String getCourseTitle() {
-        return courseTitle;
-    }
-
-    public void setCourseTitle(String courseTitle) {
-        this.courseTitle = courseTitle;
-    }
-
-    public String getPlatform() {
-        return platform;
-    }
-
-    public void setPlatform(String platform) {
-        this.platform = platform;
-    }
-
-    public String getUrl() {
-        return url;
-    }
-
-    public void setUrl(String url) {
-        this.url = url;
-    }
-
-    public Double getRelevanceScore() {
-        return relevanceScore;
-    }
-
-    public void setRelevanceScore(Double relevanceScore) {
-        this.relevanceScore = relevanceScore;
-    }
-
-    public String getAiReasoning() {
-        return aiReasoning;
-    }
-
-    public void setAiReasoning(String aiReasoning) {
-        this.aiReasoning = aiReasoning;
-    }
-
-    public RecommendationStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(RecommendationStatus status) {
-        this.status = status;
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(Instant createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public Instant getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(Instant updatedAt) {
-        this.updatedAt = updatedAt;
     }
 }

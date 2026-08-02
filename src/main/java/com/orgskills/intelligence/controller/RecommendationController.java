@@ -4,6 +4,7 @@ import com.orgskills.intelligence.dto.recommendation.RecommendationResponse;
 import com.orgskills.intelligence.dto.recommendation.RecommendationStatusUpdateRequest;
 import com.orgskills.intelligence.service.OpenAiRecommendationService;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -16,13 +17,10 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/recommendations")
+@RequiredArgsConstructor
 public class RecommendationController {
 
     private final OpenAiRecommendationService recommendationService;
-
-    public RecommendationController(OpenAiRecommendationService recommendationService) {
-        this.recommendationService = recommendationService;
-    }
 
     @PostMapping("/generate/{userId}")
     public ResponseEntity<List<RecommendationResponse>> generate(@PathVariable Long userId) {

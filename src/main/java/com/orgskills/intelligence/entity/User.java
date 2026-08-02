@@ -10,12 +10,20 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
 @Table(name = "users")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class User {
 
     @Id
@@ -60,116 +68,4 @@ public class User {
 
     @OneToMany(mappedBy = "mentor")
     private List<MentorshipMatch> mentorMatches = new ArrayList<>();
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    public String getFullName() {
-        return fullName;
-    }
-
-    public void setFullName(String fullName) {
-        this.fullName = fullName;
-    }
-
-    public Role getRole() {
-        return role;
-    }
-
-    public void setRole(Role role) {
-        this.role = role;
-    }
-
-    public String getDepartment() {
-        return department;
-    }
-
-    public void setDepartment(String department) {
-        this.department = department;
-    }
-
-    public String getJobTitle() {
-        return jobTitle;
-    }
-
-    public void setJobTitle(String jobTitle) {
-        this.jobTitle = jobTitle;
-    }
-
-    public String getAvatarUrl() {
-        return avatarUrl;
-    }
-
-    public void setAvatarUrl(String avatarUrl) {
-        this.avatarUrl = avatarUrl;
-    }
-
-    public List<UserSkill> getUserSkills() {
-        return userSkills;
-    }
-
-    public void setUserSkills(List<UserSkill> userSkills) {
-        this.userSkills = userSkills;
-    }
-
-    public List<GapAnalysis> getGapAnalyses() {
-        return gapAnalyses;
-    }
-
-    public void setGapAnalyses(List<GapAnalysis> gapAnalyses) {
-        this.gapAnalyses = gapAnalyses;
-    }
-
-    public List<Recommendation> getRecommendations() {
-        return recommendations;
-    }
-
-    public void setRecommendations(List<Recommendation> recommendations) {
-        this.recommendations = recommendations;
-    }
-
-    public List<Notification> getNotifications() {
-        return notifications;
-    }
-
-    public void setNotifications(List<Notification> notifications) {
-        this.notifications = notifications;
-    }
-
-    public List<MentorshipMatch> getMenteeMatches() {
-        return menteeMatches;
-    }
-
-    public void setMenteeMatches(List<MentorshipMatch> menteeMatches) {
-        this.menteeMatches = menteeMatches;
-    }
-
-    public List<MentorshipMatch> getMentorMatches() {
-        return mentorMatches;
-    }
-
-    public void setMentorMatches(List<MentorshipMatch> mentorMatches) {
-        this.mentorMatches = mentorMatches;
-    }
 }

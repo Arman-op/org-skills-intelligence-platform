@@ -13,11 +13,19 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "role_competencies", uniqueConstraints = {
         @UniqueConstraint(name = "uk_role_dept_skill", columnNames = {"job_title", "department", "skill_id"})
 })
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class RoleCompetency {
 
     @Id
@@ -37,44 +45,4 @@ public class RoleCompetency {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private ProficiencyLevel requiredProficiencyLevel;
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getJobTitle() {
-        return jobTitle;
-    }
-
-    public void setJobTitle(String jobTitle) {
-        this.jobTitle = jobTitle;
-    }
-
-    public String getDepartment() {
-        return department;
-    }
-
-    public void setDepartment(String department) {
-        this.department = department;
-    }
-
-    public Skill getSkill() {
-        return skill;
-    }
-
-    public void setSkill(Skill skill) {
-        this.skill = skill;
-    }
-
-    public ProficiencyLevel getRequiredProficiencyLevel() {
-        return requiredProficiencyLevel;
-    }
-
-    public void setRequiredProficiencyLevel(ProficiencyLevel requiredProficiencyLevel) {
-        this.requiredProficiencyLevel = requiredProficiencyLevel;
-    }
 }

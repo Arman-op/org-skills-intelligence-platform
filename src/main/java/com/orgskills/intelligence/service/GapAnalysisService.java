@@ -14,6 +14,7 @@ import com.orgskills.intelligence.repository.GapAnalysisRepository;
 import com.orgskills.intelligence.repository.RoleCompetencyRepository;
 import com.orgskills.intelligence.repository.UserRepository;
 import com.orgskills.intelligence.repository.UserSkillRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,6 +26,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class GapAnalysisService {
 
     private final UserRepository userRepository;
@@ -32,18 +34,6 @@ public class GapAnalysisService {
     private final RoleCompetencyRepository roleCompetencyRepository;
     private final GapAnalysisRepository gapAnalysisRepository;
     private final NotificationService notificationService;
-
-    public GapAnalysisService(UserRepository userRepository,
-                              UserSkillRepository userSkillRepository,
-                              RoleCompetencyRepository roleCompetencyRepository,
-                              GapAnalysisRepository gapAnalysisRepository,
-                              NotificationService notificationService) {
-        this.userRepository = userRepository;
-        this.userSkillRepository = userSkillRepository;
-        this.roleCompetencyRepository = roleCompetencyRepository;
-        this.gapAnalysisRepository = gapAnalysisRepository;
-        this.notificationService = notificationService;
-    }
 
     @Transactional
     public List<GapAnalysisResponse> calculateAndFetchUserGaps(Long userId) {
@@ -96,14 +86,14 @@ public class GapAnalysisService {
                         Collectors.averagingDouble(GapAnalysis::getGapScore)
                 ));
 
-        DepartmentGapMetricsResponse response = new DepartmentGapMetricsResponse();
-        response.setDepartment(department);
-        response.setEmployeeCount(users.size());
-        response.setAverageGapScore(gaps.stream().mapToDouble(GapAnalysis::getGapScore).average().orElse(0.0));
-        response.setSeverityDistribution(severityCounts.entrySet().stream()
-                .collect(Collectors.toMap(e -> e.getKey().name(), Map.Entry::getValue)));
-        response.setSkillGapAverages(skillAverages);
-        return response;
+        return DepartmentGapMetricsResponse.builder()
+                .department(department)
+                .employeeCount(users.size())
+                .averageGapScore(gaps.stream().mapToDouble(GapAnalysis::getGapScore).average().orElse(0.0))
+                .severityDistribution(severityCounts.entrySet().stream()
+                        .collect(Collectors.toMap(e -> e.getKey().name(), Map.Entry::getValue)))
+                .skillGapAverages(skillAverages)
+                .build();
     }
 
     private GapAnalysis buildGap(User user, RoleCompetency roleCompetency, UserSkill userSkill) {
@@ -157,16 +147,16 @@ public class GapAnalysisService {
     }
 
     public GapAnalysisResponse toResponse(GapAnalysis gap) {
-        GapAnalysisResponse response = new GapAnalysisResponse();
-        response.setId(gap.getId());
-        response.setUserId(gap.getUser().getId());
-        response.setUserName(gap.getUser().getFullName());
-        response.setSkillId(gap.getSkill().getId());
-        response.setSkillName(gap.getSkill().getName());
-        response.setTargetScore(gap.getTargetScore());
-        response.setCurrentScore(gap.getCurrentScore());
-        response.setGapScore(gap.getGapScore());
-        response.setRiskSeverity(gap.getRiskSeverity());
-        return response;
+        return GapAnalysisResponse.builder()
+                .id(gap.getId())
+                .userId(gap.getUser().getId())
+                .userName(gap.getUser().getFullName())
+                .skillId(gap.getSkill().getId())
+                .skillName(gap.getSkill().getName())
+                .targetScore(gap.getTargetScore())
+                .currentScore(gap.getCurrentScore())
+                .gapScore(gap.getGapScore())
+                .riskSeverity(gap.getRiskSeverity())
+                .build();
     }
 }

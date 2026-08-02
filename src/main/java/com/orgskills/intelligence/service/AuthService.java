@@ -11,6 +11,7 @@ import com.orgskills.intelligence.exception.ValidationException;
 import com.orgskills.intelligence.repository.UserRepository;
 import com.orgskills.intelligence.security.CustomPrincipal;
 import com.orgskills.intelligence.security.JwtTokenProvider;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -20,22 +21,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@RequiredArgsConstructor
 public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuthenticationManager authenticationManager;
     private final JwtTokenProvider jwtTokenProvider;
-
-    public AuthService(UserRepository userRepository,
-                       PasswordEncoder passwordEncoder,
-                       AuthenticationManager authenticationManager,
-                       JwtTokenProvider jwtTokenProvider) {
-        this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.authenticationManager = authenticationManager;
-        this.jwtTokenProvider = jwtTokenProvider;
-    }
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
@@ -59,7 +51,10 @@ public class AuthService {
                 new UsernamePasswordAuthenticationToken(normalizedEmail, request.getPassword())
         );
         String token = jwtTokenProvider.generateToken(authentication);
-        return new AuthResponse(token, toUserProfile(saved));
+        return AuthResponse.builder()
+                .accessToken(token)
+                .user(toUserProfile(saved))
+                .build();
     }
 
     public AuthResponse login(LoginRequest request) {
@@ -72,7 +67,10 @@ public class AuthService {
             CustomPrincipal principal = (CustomPrincipal) authentication.getPrincipal();
             User user = userRepository.findById(principal.getUserId())
                     .orElseThrow(() -> new ResourceNotFoundException("Authenticated user no longer exists"));
-            return new AuthResponse(token, toUserProfile(user));
+            return AuthResponse.builder()
+                    .accessToken(token)
+                    .user(toUserProfile(user))
+                    .build();
         } catch (BadCredentialsException ex) {
             throw new UnauthorizedException("Invalid email or password");
         }
@@ -88,14 +86,14 @@ public class AuthService {
     }
 
     private UserProfileResponse toUserProfile(User user) {
-        UserProfileResponse profile = new UserProfileResponse();
-        profile.setId(user.getId());
-        profile.setEmail(user.getEmail());
-        profile.setFullName(user.getFullName());
-        profile.setRole(user.getRole());
-        profile.setDepartment(user.getDepartment());
-        profile.setJobTitle(user.getJobTitle());
-        profile.setAvatarUrl(user.getAvatarUrl());
-        return profile;
+        return UserProfileResponse.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .fullName(user.getFullName())
+                .role(user.getRole())
+                .department(user.getDepartment())
+                .jobTitle(user.getJobTitle())
+                .avatarUrl(user.getAvatarUrl())
+                .build();
     }
 }

@@ -8,6 +8,7 @@ import com.orgskills.intelligence.entity.enums.NotificationType;
 import com.orgskills.intelligence.exception.ResourceNotFoundException;
 import com.orgskills.intelligence.repository.NotificationRepository;
 import com.orgskills.intelligence.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,19 +16,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
     private final SimpMessagingTemplate messagingTemplate;
-
-    public NotificationService(NotificationRepository notificationRepository,
-                               UserRepository userRepository,
-                               SimpMessagingTemplate messagingTemplate) {
-        this.notificationRepository = notificationRepository;
-        this.userRepository = userRepository;
-        this.messagingTemplate = messagingTemplate;
-    }
 
     @Transactional
     public Notification createGapAlert(User user, Skill skill, double gapScore) {
@@ -77,14 +71,14 @@ public class NotificationService {
     }
 
     public NotificationResponse toResponse(Notification notification) {
-        NotificationResponse response = new NotificationResponse();
-        response.setId(notification.getId());
-        response.setUserId(notification.getUser().getId());
-        response.setTitle(notification.getTitle());
-        response.setMessage(notification.getMessage());
-        response.setType(notification.getType());
-        response.setIsRead(notification.getIsRead());
-        response.setCreatedAt(notification.getCreatedAt());
-        return response;
+        return NotificationResponse.builder()
+                .id(notification.getId())
+                .userId(notification.getUser().getId())
+                .title(notification.getTitle())
+                .message(notification.getMessage())
+                .type(notification.getType())
+                .isRead(notification.getIsRead())
+                .createdAt(notification.getCreatedAt())
+                .build();
     }
 }

@@ -11,6 +11,7 @@ import com.orgskills.intelligence.exception.ResourceNotFoundException;
 import com.orgskills.intelligence.repository.GapAnalysisRepository;
 import com.orgskills.intelligence.repository.RecommendationRepository;
 import com.orgskills.intelligence.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -27,6 +28,7 @@ import java.util.List;
 import java.util.Map;
 
 @Service
+@RequiredArgsConstructor
 public class OpenAiRecommendationService {
 
     private final UserRepository userRepository;
@@ -34,7 +36,7 @@ public class OpenAiRecommendationService {
     private final RecommendationRepository recommendationRepository;
     private final GapAnalysisService gapAnalysisService;
     private final ObjectMapper objectMapper;
-    private final HttpClient httpClient;
+    private final HttpClient httpClient = HttpClient.newHttpClient();
 
     @Value("${app.openai.api-key:}")
     private String openAiApiKey;
@@ -44,19 +46,6 @@ public class OpenAiRecommendationService {
 
     @Value("${app.openai.base-url:https://api.openai.com/v1/chat/completions}")
     private String openAiBaseUrl;
-
-    public OpenAiRecommendationService(UserRepository userRepository,
-                                       GapAnalysisRepository gapAnalysisRepository,
-                                       RecommendationRepository recommendationRepository,
-                                       GapAnalysisService gapAnalysisService,
-                                       ObjectMapper objectMapper) {
-        this.userRepository = userRepository;
-        this.gapAnalysisRepository = gapAnalysisRepository;
-        this.recommendationRepository = recommendationRepository;
-        this.gapAnalysisService = gapAnalysisService;
-        this.objectMapper = objectMapper;
-        this.httpClient = HttpClient.newHttpClient();
-    }
 
     @Transactional
     public List<RecommendationResponse> generateRecommendations(Long userId) {
@@ -229,19 +218,19 @@ public class OpenAiRecommendationService {
     }
 
     private RecommendationResponse toResponse(Recommendation recommendation) {
-        RecommendationResponse response = new RecommendationResponse();
-        response.setId(recommendation.getId());
-        response.setUserId(recommendation.getUser().getId());
-        response.setGapId(recommendation.getGap().getId());
-        response.setSkillId(recommendation.getGap().getSkill().getId());
-        response.setSkillName(recommendation.getGap().getSkill().getName());
-        response.setCourseTitle(recommendation.getCourseTitle());
-        response.setPlatform(recommendation.getPlatform());
-        response.setUrl(recommendation.getUrl());
-        response.setRelevanceScore(recommendation.getRelevanceScore());
-        response.setAiReasoning(recommendation.getAiReasoning());
-        response.setStatus(recommendation.getStatus());
-        return response;
+        return RecommendationResponse.builder()
+                .id(recommendation.getId())
+                .userId(recommendation.getUser().getId())
+                .gapId(recommendation.getGap().getId())
+                .skillId(recommendation.getGap().getSkill().getId())
+                .skillName(recommendation.getGap().getSkill().getName())
+                .courseTitle(recommendation.getCourseTitle())
+                .platform(recommendation.getPlatform())
+                .url(recommendation.getUrl())
+                .relevanceScore(recommendation.getRelevanceScore())
+                .aiReasoning(recommendation.getAiReasoning())
+                .status(recommendation.getStatus())
+                .build();
     }
 
     private record RecommendationDraft(

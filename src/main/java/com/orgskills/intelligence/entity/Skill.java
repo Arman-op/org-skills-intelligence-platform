@@ -7,12 +7,20 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
 @Table(name = "skills")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class Skill {
 
     @Id
@@ -39,68 +47,4 @@ public class Skill {
 
     @OneToMany(mappedBy = "targetSkill")
     private List<MentorshipMatch> mentorshipMatches = new ArrayList<>();
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getCategory() {
-        return category;
-    }
-
-    public void setCategory(String category) {
-        this.category = category;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public List<UserSkill> getUserSkills() {
-        return userSkills;
-    }
-
-    public void setUserSkills(List<UserSkill> userSkills) {
-        this.userSkills = userSkills;
-    }
-
-    public List<RoleCompetency> getRoleCompetencies() {
-        return roleCompetencies;
-    }
-
-    public void setRoleCompetencies(List<RoleCompetency> roleCompetencies) {
-        this.roleCompetencies = roleCompetencies;
-    }
-
-    public List<GapAnalysis> getGapAnalyses() {
-        return gapAnalyses;
-    }
-
-    public void setGapAnalyses(List<GapAnalysis> gapAnalyses) {
-        this.gapAnalyses = gapAnalyses;
-    }
-
-    public List<MentorshipMatch> getMentorshipMatches() {
-        return mentorshipMatches;
-    }
-
-    public void setMentorshipMatches(List<MentorshipMatch> mentorshipMatches) {
-        this.mentorshipMatches = mentorshipMatches;
-    }
 }

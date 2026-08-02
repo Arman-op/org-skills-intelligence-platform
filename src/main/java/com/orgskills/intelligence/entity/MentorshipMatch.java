@@ -11,12 +11,21 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.Instant;
 
 @Entity
 @Table(name = "mentorship_matches")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class MentorshipMatch {
 
     @Id
@@ -42,56 +51,8 @@ public class MentorshipMatch {
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
-    @jakarta.persistence.PrePersist
+    @PrePersist
     public void prePersist() {
         this.createdAt = Instant.now();
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public User getMentee() {
-        return mentee;
-    }
-
-    public void setMentee(User mentee) {
-        this.mentee = mentee;
-    }
-
-    public User getMentor() {
-        return mentor;
-    }
-
-    public void setMentor(User mentor) {
-        this.mentor = mentor;
-    }
-
-    public Skill getTargetSkill() {
-        return targetSkill;
-    }
-
-    public void setTargetSkill(Skill targetSkill) {
-        this.targetSkill = targetSkill;
-    }
-
-    public MentorshipStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(MentorshipStatus status) {
-        this.status = status;
-    }
-
-    public Instant getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(Instant createdAt) {
-        this.createdAt = createdAt;
     }
 }

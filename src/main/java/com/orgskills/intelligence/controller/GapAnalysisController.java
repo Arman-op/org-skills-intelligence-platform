@@ -3,6 +3,7 @@ package com.orgskills.intelligence.controller;
 import com.orgskills.intelligence.dto.gap.DepartmentGapMetricsResponse;
 import com.orgskills.intelligence.dto.gap.GapAnalysisResponse;
 import com.orgskills.intelligence.service.GapAnalysisService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -13,13 +14,10 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/gaps")
+@RequiredArgsConstructor
 public class GapAnalysisController {
 
     private final GapAnalysisService gapAnalysisService;
-
-    public GapAnalysisController(GapAnalysisService gapAnalysisService) {
-        this.gapAnalysisService = gapAnalysisService;
-    }
 
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<GapAnalysisResponse>> getUserGaps(@PathVariable Long userId) {

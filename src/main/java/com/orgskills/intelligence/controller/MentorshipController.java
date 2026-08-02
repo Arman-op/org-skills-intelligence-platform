@@ -4,6 +4,7 @@ import com.orgskills.intelligence.dto.mentorship.MentorshipMatchRequest;
 import com.orgskills.intelligence.dto.mentorship.MentorshipMatchResponse;
 import com.orgskills.intelligence.service.MentorshipService;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,13 +14,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/mentorship")
+@RequiredArgsConstructor
 public class MentorshipController {
 
     private final MentorshipService mentorshipService;
-
-    public MentorshipController(MentorshipService mentorshipService) {
-        this.mentorshipService = mentorshipService;
-    }
 
     @PostMapping("/match")
     public ResponseEntity<MentorshipMatchResponse> match(@Valid @RequestBody MentorshipMatchRequest request) {
