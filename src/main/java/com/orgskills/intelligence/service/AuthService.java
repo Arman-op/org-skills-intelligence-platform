@@ -1,8 +1,10 @@
 package com.orgskills.intelligence.service;
 
 import com.orgskills.intelligence.dto.auth.AuthResponse;
+import com.orgskills.intelligence.dto.auth.ChangePasswordRequest;
 import com.orgskills.intelligence.dto.auth.LoginRequest;
 import com.orgskills.intelligence.dto.auth.RegisterRequest;
+import com.orgskills.intelligence.dto.auth.UpdateProfileRequest;
 import com.orgskills.intelligence.dto.auth.UserProfileResponse;
 import com.orgskills.intelligence.entity.User;
 import com.orgskills.intelligence.exception.ResourceNotFoundException;
@@ -83,6 +85,34 @@ public class AuthService {
         User user = userRepository.findById(principal.getUserId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         return toUserProfile(user);
+    }
+
+    @Transactional
+    public UserProfileResponse updateProfile(Authentication authentication, UpdateProfileRequest request) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof CustomPrincipal principal)) {
+            throw new UnauthorizedException("Not authenticated");
+        }
+        User user = userRepository.findById(principal.getUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        user.setFullName(request.getFullName().trim());
+        user.setDepartment(request.getDepartment().trim());
+        user.setJobTitle(request.getJobTitle().trim());
+        user.setAvatarUrl(request.getAvatarUrl());
+        return toUserProfile(userRepository.save(user));
+    }
+
+    @Transactional
+    public void changePassword(Authentication authentication, ChangePasswordRequest request) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof CustomPrincipal principal)) {
+            throw new UnauthorizedException("Not authenticated");
+        }
+        User user = userRepository.findById(principal.getUserId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw new ValidationException("Current password is incorrect");
+        }
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
     }
 
     private UserProfileResponse toUserProfile(User user) {

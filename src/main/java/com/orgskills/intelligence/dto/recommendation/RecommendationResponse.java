@@ -1,10 +1,11 @@
 package com.orgskills.intelligence.dto.recommendation;
 
-import com.orgskills.intelligence.entity.enums.RecommendationStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
+import java.time.LocalDateTime;
 
 @Data
 @NoArgsConstructor
@@ -12,14 +13,12 @@ import lombok.NoArgsConstructor;
 @Builder
 public class RecommendationResponse {
     private Long id;
-    private Long userId;
-    private Long gapId;
+    private Long employeeId;
     private Long skillId;
     private String skillName;
-    private String courseTitle;
-    private String platform;
-    private String url;
-    private Double relevanceScore;
-    private String aiReasoning;
-    private RecommendationStatus status;
+    private String recommendationText;
+    private String suggestedResourceType;
+    private Integer priorityRank;
+    private String sourceGapSeverity;
+    private LocalDateTime generatedAt;
 }

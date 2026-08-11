@@ -7,4 +7,6 @@ import java.util.List;
 
 public interface RoleCompetencyRepository extends JpaRepository<RoleCompetency, Long> {
     List<RoleCompetency> findByJobTitleIgnoreCaseAndDepartmentIgnoreCase(String jobTitle, String department);
+
+    boolean existsByJobTitleIgnoreCaseAndDepartmentIgnoreCaseAndSkillId(String jobTitle, String department, Long skillId);
 }

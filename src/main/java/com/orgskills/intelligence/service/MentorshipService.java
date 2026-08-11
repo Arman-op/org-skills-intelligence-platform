@@ -79,6 +79,24 @@ public class MentorshipService {
         return toResponse(saved);
     }
 
+    public List<MentorshipMatchResponse> getMatchesByUser(Long userId) {
+        if (!userRepository.existsById(userId)) {
+            throw new ResourceNotFoundException("User not found for id: " + userId);
+        }
+        return mentorshipMatchRepository.findByMenteeIdOrMentorIdOrderByCreatedAtDesc(userId, userId)
+                .stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Transactional
+    public MentorshipMatchResponse updateStatus(Long matchId, MentorshipStatus status) {
+        MentorshipMatch match = mentorshipMatchRepository.findById(matchId)
+                .orElseThrow(() -> new ResourceNotFoundException("Mentorship match not found for id: " + matchId));
+        match.setStatus(status);
+        return toResponse(mentorshipMatchRepository.save(match));
+    }
+
     private MentorshipMatchResponse toResponse(MentorshipMatch match) {
         return MentorshipMatchResponse.builder()
                 .id(match.getId())

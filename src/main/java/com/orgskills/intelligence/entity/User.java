@@ -57,8 +57,8 @@ public class User {
     @OneToMany(mappedBy = "user")
     private List<GapAnalysis> gapAnalyses = new ArrayList<>();
 
-    @OneToMany(mappedBy = "user")
-    private List<Recommendation> recommendations = new ArrayList<>();
+    @OneToMany(mappedBy = "employee")
+    private List<TrainingRecommendation> recommendations = new ArrayList<>();
 
     @OneToMany(mappedBy = "user")
     private List<Notification> notifications = new ArrayList<>();

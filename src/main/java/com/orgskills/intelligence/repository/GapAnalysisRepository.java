@@ -13,5 +13,9 @@ public interface GapAnalysisRepository extends JpaRepository<GapAnalysis, Long> 
 
     List<GapAnalysis> findByUserIdAndRiskSeverity(Long userId, RiskSeverity riskSeverity);
 
+    List<GapAnalysis> findByUserIdAndCurrentScoreEquals(Long userId, Double currentScore);
+
+    List<GapAnalysis> findByUserIdAndCurrentScoreGreaterThanAndGapScoreGreaterThan(Long userId, Double currentScore, Double gapScore);
+
     void deleteByUserId(Long userId);
 }
