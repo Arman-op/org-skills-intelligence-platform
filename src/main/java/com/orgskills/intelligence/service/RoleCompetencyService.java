@@ -9,6 +9,8 @@ import com.orgskills.intelligence.exception.ValidationException;
 import com.orgskills.intelligence.repository.RoleCompetencyRepository;
 import com.orgskills.intelligence.repository.SkillRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +23,7 @@ public class RoleCompetencyService {
     private final RoleCompetencyRepository roleCompetencyRepository;
     private final SkillRepository skillRepository;
 
+    @Cacheable(value = "competencies", key = "(#jobTitle != null ? #jobTitle : 'all') + ':' + (#department != null ? #department : 'all')")
     public List<RoleCompetencyResponse> getCompetencies(String jobTitle, String department) {
         List<RoleCompetency> competencies;
         if (jobTitle != null && !jobTitle.isBlank() && department != null && !department.isBlank()) {
@@ -33,6 +36,7 @@ public class RoleCompetencyService {
     }
 
     @Transactional
+    @CacheEvict(value = "competencies", allEntries = true)
     public RoleCompetencyResponse create(RoleCompetencyRequest request) {
         Skill skill = skillRepository.findById(request.getSkillId())
                 .orElseThrow(() -> new ResourceNotFoundException("Skill not found for id: " + request.getSkillId()));
@@ -52,6 +56,7 @@ public class RoleCompetencyService {
     }
 
     @Transactional
+    @CacheEvict(value = "competencies", allEntries = true)
     public RoleCompetencyResponse update(Long id, RoleCompetencyRequest request) {
         RoleCompetency competency = roleCompetencyRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Role competency not found for id: " + id));
@@ -67,6 +72,7 @@ public class RoleCompetencyService {
     }
 
     @Transactional
+    @CacheEvict(value = "competencies", allEntries = true)
     public void delete(Long id) {
         if (!roleCompetencyRepository.existsById(id)) {
             throw new ResourceNotFoundException("Role competency not found for id: " + id);

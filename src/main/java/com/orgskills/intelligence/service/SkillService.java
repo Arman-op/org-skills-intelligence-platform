@@ -7,6 +7,8 @@ import com.orgskills.intelligence.exception.ResourceNotFoundException;
 import com.orgskills.intelligence.exception.ValidationException;
 import com.orgskills.intelligence.repository.SkillRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +20,7 @@ public class SkillService {
 
     private final SkillRepository skillRepository;
 
+    @Cacheable(value = "skills", key = "#category != null ? #category : 'all'")
     public List<SkillResponse> getAllSkills(String category) {
         List<Skill> skills;
         if (category != null && !category.isBlank()) {
@@ -35,6 +38,7 @@ public class SkillService {
     }
 
     @Transactional
+    @CacheEvict(value = "skills", allEntries = true)
     public SkillResponse create(SkillRequest request) {
         if (skillRepository.existsByNameIgnoreCase(request.getName().trim())) {
             throw new ValidationException("Skill with name '" + request.getName() + "' already exists");
@@ -47,6 +51,7 @@ public class SkillService {
     }
 
     @Transactional
+    @CacheEvict(value = "skills", allEntries = true)
     public SkillResponse update(Long id, SkillRequest request) {
         Skill skill = skillRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Skill not found for id: " + id));
@@ -62,6 +67,7 @@ public class SkillService {
     }
 
     @Transactional
+    @CacheEvict(value = "skills", allEntries = true)
     public void delete(Long id) {
         if (!skillRepository.existsById(id)) {
             throw new ResourceNotFoundException("Skill not found for id: " + id);

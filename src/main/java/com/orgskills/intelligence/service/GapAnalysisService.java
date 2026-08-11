@@ -17,6 +17,7 @@ import com.orgskills.intelligence.repository.RoleCompetencyRepository;
 import com.orgskills.intelligence.repository.UserRepository;
 import com.orgskills.intelligence.repository.UserSkillRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -166,8 +167,9 @@ public class GapAnalysisService {
         }
 
         List<Long> userIds = users.stream().map(User::getId).toList();
-        List<GapAnalysis> gaps = gapAnalysisRepository.findByUserIdIn(userIds);
-        if (gaps.isEmpty()) {
+        
+        Double avgScore = gapAnalysisRepository.getAverageGapScoreByUserIds(userIds);
+        if (avgScore == null) {
             throw new ValidationException("No gap analysis records exist for department: " + department
                     + ". Run user gap analysis first.");
         }
@@ -176,18 +178,22 @@ public class GapAnalysisService {
         for (RiskSeverity severity : RiskSeverity.values()) {
             severityCounts.put(severity, 0L);
         }
-        gaps.forEach(g -> severityCounts.put(g.getRiskSeverity(), severityCounts.get(g.getRiskSeverity()) + 1));
+        
+        List<Object[]> riskCounts = gapAnalysisRepository.countRiskSeverityByUserIds(userIds);
+        for (Object[] row : riskCounts) {
+            severityCounts.put((RiskSeverity) row[0], (Long) row[1]);
+        }
 
-        Map<String, Double> skillAverages = gaps.stream()
-                .collect(Collectors.groupingBy(
-                        g -> g.getSkill().getName(),
-                        Collectors.averagingDouble(GapAnalysis::getGapScore)
-                ));
+        Map<String, Double> skillAverages = new java.util.HashMap<>();
+        List<Object[]> skillAvgResults = gapAnalysisRepository.getAverageGapScoreBySkillForUsers(userIds);
+        for (Object[] row : skillAvgResults) {
+            skillAverages.put((String) row[0], (Double) row[1]);
+        }
 
         return DepartmentGapMetricsResponse.builder()
                 .department(department)
                 .employeeCount(users.size())
-                .averageGapScore(Math.round(gaps.stream().mapToDouble(GapAnalysis::getGapScore).average().orElse(0.0) * 100.0) / 100.0)
+                .averageGapScore(Math.round(avgScore * 100.0) / 100.0)
                 .severityDistribution(severityCounts.entrySet().stream()
                         .collect(Collectors.toMap(e -> e.getKey().name(), Map.Entry::getValue)))
                 .skillGapAverages(skillAverages)
@@ -196,12 +202,12 @@ public class GapAnalysisService {
 
     @Transactional(readOnly = true)
     public OrgGapMetricsResponse getOrgGapMetrics() {
-        List<User> allUsers = userRepository.findAll();
-        List<GapAnalysis> allGaps = gapAnalysisRepository.findAll();
+        long totalUsers = userRepository.count();
+        long totalAnalyzedGaps = gapAnalysisRepository.count();
 
-        if (allGaps.isEmpty()) {
+        if (totalAnalyzedGaps == 0) {
             return OrgGapMetricsResponse.builder()
-                    .totalEmployees(allUsers.size())
+                    .totalEmployees((int) totalUsers)
                     .totalAnalyzedGaps(0)
                     .overallAverageGapScore(0.0)
                     .overallReadinessPercentage(100.0)
@@ -211,48 +217,43 @@ public class GapAnalysisService {
                     .build();
         }
 
-        double totalTarget = allGaps.stream().mapToDouble(GapAnalysis::getTargetScore).sum();
-        double totalCurrent = allGaps.stream().mapToDouble(GapAnalysis::getCurrentScore).sum();
-        double readiness = totalTarget > 0 ? Math.min(100.0, (totalCurrent / totalTarget) * 100.0) : 100.0;
-        double overallAvgGap = allGaps.stream().mapToDouble(GapAnalysis::getGapScore).average().orElse(0.0);
+        Double totalTarget = gapAnalysisRepository.getTotalTargetScore();
+        Double totalCurrent = gapAnalysisRepository.getTotalCurrentScore();
+        double readiness = (totalTarget != null && totalTarget > 0) ? Math.min(100.0, (totalCurrent / totalTarget) * 100.0) : 100.0;
+        
+        Double overallAvgGap = gapAnalysisRepository.getOverallAverageGapScore();
 
         Map<String, Long> riskMap = new java.util.LinkedHashMap<>();
         for (RiskSeverity r : RiskSeverity.values()) {
             riskMap.put(r.name(), 0L);
         }
-        allGaps.forEach(g -> riskMap.put(g.getRiskSeverity().name(), riskMap.get(g.getRiskSeverity().name()) + 1));
+        
+        List<Object[]> riskCounts = gapAnalysisRepository.countOverallRiskSeverity();
+        for (Object[] row : riskCounts) {
+            riskMap.put(((RiskSeverity) row[0]).name(), (Long) row[1]);
+        }
 
-        Map<String, Double> deptAverages = allGaps.stream()
-                .collect(Collectors.groupingBy(
-                        g -> g.getUser().getDepartment(),
-                        Collectors.averagingDouble(GapAnalysis::getGapScore)
-                ));
+        Map<String, Double> deptAverages = new java.util.HashMap<>();
+        List<Object[]> deptResults = gapAnalysisRepository.getAverageGapScoreByDepartment();
+        for (Object[] row : deptResults) {
+            deptAverages.put((String) row[0], (Double) row[1]);
+        }
 
-        Map<Long, List<GapAnalysis>> missingBySkill = allGaps.stream()
-                .filter(g -> g.getCurrentScore() == 0.0)
-                .collect(Collectors.groupingBy(g -> g.getSkill().getId()));
-
-        List<OrgGapMetricsResponse.SkillGapSummary> topMissing = missingBySkill.entrySet().stream()
-                .map(e -> {
-                    List<GapAnalysis> skillGaps = e.getValue();
-                    var first = skillGaps.get(0);
-                    double avgScore = skillGaps.stream().mapToDouble(GapAnalysis::getGapScore).average().orElse(0.0);
-                    return OrgGapMetricsResponse.SkillGapSummary.builder()
-                            .skillId(first.getSkill().getId())
-                            .skillName(first.getSkill().getName())
-                            .category(first.getSkill().getCategory())
-                            .affectedEmployeesCount(skillGaps.size())
-                            .averageGapScore(Math.round(avgScore * 100.0) / 100.0)
-                            .build();
-                })
-                .sorted(Comparator.comparingLong(OrgGapMetricsResponse.SkillGapSummary::getAffectedEmployeesCount).reversed())
-                .limit(10)
+        List<Object[]> missingSkills = gapAnalysisRepository.getTopMissingSkills(PageRequest.of(0, 10));
+        List<OrgGapMetricsResponse.SkillGapSummary> topMissing = missingSkills.stream()
+                .map(row -> OrgGapMetricsResponse.SkillGapSummary.builder()
+                        .skillId((Long) row[0])
+                        .skillName((String) row[1])
+                        .category((String) row[2])
+                        .affectedEmployeesCount(((Number) row[3]).intValue())
+                        .averageGapScore(Math.round(((Double) row[4]) * 100.0) / 100.0)
+                        .build())
                 .toList();
 
         return OrgGapMetricsResponse.builder()
-                .totalEmployees(allUsers.size())
-                .totalAnalyzedGaps(allGaps.size())
-                .overallAverageGapScore(Math.round(overallAvgGap * 100.0) / 100.0)
+                .totalEmployees((int) totalUsers)
+                .totalAnalyzedGaps((int) totalAnalyzedGaps)
+                .overallAverageGapScore(Math.round((overallAvgGap != null ? overallAvgGap : 0.0) * 100.0) / 100.0)
                 .overallReadinessPercentage(Math.round(readiness * 100.0) / 100.0)
                 .riskDistribution(riskMap)
                 .departmentAverageGaps(deptAverages)

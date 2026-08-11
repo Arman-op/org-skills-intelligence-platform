@@ -9,6 +9,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -21,6 +22,8 @@ import lombok.Setter;
 @Entity
 @Table(name = "user_skills", uniqueConstraints = {
         @UniqueConstraint(name = "uk_user_skill", columnNames = {"user_id", "skill_id"})
+}, indexes = {
+        @Index(name = "idx_user_skill_skill_id", columnList = "skill_id")
 })
 @Getter
 @Setter

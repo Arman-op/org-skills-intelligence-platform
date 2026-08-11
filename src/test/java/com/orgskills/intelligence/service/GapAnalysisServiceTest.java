@@ -189,10 +189,14 @@ class GapAnalysisServiceTest {
     @Test
     @DisplayName("getDepartmentMetrics computes average gap score and severity distribution")
     void testGetDepartmentMetrics() {
-        GapAnalysis gap1 = new GapAnalysis(1L, sampleUser, javaSkill, 5.0, 3.0, 2.0, RiskSeverity.HIGH, null);
-
         when(userRepository.findByDepartmentIgnoreCase("Engineering")).thenReturn(List.of(sampleUser));
-        when(gapAnalysisRepository.findByUserIdIn(List.of(1L))).thenReturn(List.of(gap1));
+        when(gapAnalysisRepository.getAverageGapScoreByUserIds(List.of(1L))).thenReturn(2.0);
+        
+        List<Object[]> riskResult = java.util.Collections.singletonList(new Object[]{RiskSeverity.HIGH, 1L});
+        when(gapAnalysisRepository.countRiskSeverityByUserIds(List.of(1L))).thenReturn(riskResult);
+        
+        List<Object[]> skillAvgResult = java.util.Collections.singletonList(new Object[]{"Java", 2.0});
+        when(gapAnalysisRepository.getAverageGapScoreBySkillForUsers(List.of(1L))).thenReturn(skillAvgResult);
 
         DepartmentGapMetricsResponse metrics = gapAnalysisService.getDepartmentMetrics("Engineering");
 
@@ -200,15 +204,26 @@ class GapAnalysisServiceTest {
         assertThat(metrics.getEmployeeCount()).isEqualTo(1);
         assertThat(metrics.getAverageGapScore()).isEqualTo(2.0);
         assertThat(metrics.getSeverityDistribution().get("HIGH")).isEqualTo(1L);
+        assertThat(metrics.getSkillGapAverages().get("Java")).isEqualTo(2.0);
     }
 
     @Test
     @DisplayName("getOrgGapMetrics aggregates overall gap intelligence across organization")
     void testGetOrgGapMetrics() {
-        GapAnalysis gap1 = new GapAnalysis(1L, sampleUser, javaSkill, 5.0, 0.0, 5.0, RiskSeverity.CRITICAL, null);
-
-        when(userRepository.findAll()).thenReturn(List.of(sampleUser));
-        when(gapAnalysisRepository.findAll()).thenReturn(List.of(gap1));
+        when(userRepository.count()).thenReturn(1L);
+        when(gapAnalysisRepository.count()).thenReturn(1L);
+        when(gapAnalysisRepository.getTotalTargetScore()).thenReturn(5.0);
+        when(gapAnalysisRepository.getTotalCurrentScore()).thenReturn(0.0);
+        when(gapAnalysisRepository.getOverallAverageGapScore()).thenReturn(5.0);
+        
+        List<Object[]> overallRiskResult = java.util.Collections.singletonList(new Object[]{RiskSeverity.CRITICAL, 1L});
+        when(gapAnalysisRepository.countOverallRiskSeverity()).thenReturn(overallRiskResult);
+        
+        List<Object[]> deptResult = java.util.Collections.singletonList(new Object[]{"Engineering", 5.0});
+        when(gapAnalysisRepository.getAverageGapScoreByDepartment()).thenReturn(deptResult);
+        
+        List<Object[]> missingResult = java.util.Collections.singletonList(new Object[]{10L, "Java", "Backend", 1L, 5.0});
+        when(gapAnalysisRepository.getTopMissingSkills(any())).thenReturn(missingResult);
 
         OrgGapMetricsResponse orgMetrics = gapAnalysisService.getOrgGapMetrics();
 
@@ -217,5 +232,6 @@ class GapAnalysisServiceTest {
         assertThat(orgMetrics.getOverallAverageGapScore()).isEqualTo(5.0);
         assertThat(orgMetrics.getTopMissingSkills()).hasSize(1);
         assertThat(orgMetrics.getTopMissingSkills().get(0).getSkillName()).isEqualTo("Java");
+        assertThat(orgMetrics.getOverallReadinessPercentage()).isEqualTo(0.0);
     }
 }
