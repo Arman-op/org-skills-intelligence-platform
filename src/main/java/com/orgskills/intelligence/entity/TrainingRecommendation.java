@@ -49,6 +49,9 @@ public class TrainingRecommendation {
     @Column(nullable = false)
     private String sourceGapSeverity;
 
+    @Column(nullable = false)
+    private Double relevanceScore = 0.0;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime generatedAt;
 

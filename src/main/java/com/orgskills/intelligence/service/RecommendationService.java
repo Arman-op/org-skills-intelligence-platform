@@ -120,6 +120,15 @@ public class RecommendationService {
                 continue;
             }
 
+            double scoreMultiplier = gap.getGapScore() * 20.0;
+            double severityBonus = switch (gap.getRiskSeverity()) {
+                case CRITICAL -> 30.0;
+                case HIGH -> 20.0;
+                case MEDIUM -> 10.0;
+                case LOW -> 5.0;
+            };
+            double relevanceScore = Math.min(100.0, scoreMultiplier + severityBonus);
+
             TrainingRecommendation rec = new TrainingRecommendation();
             rec.setEmployee(employee);
             rec.setSkill(skill);
@@ -127,6 +136,7 @@ public class RecommendationService {
             rec.setSuggestedResourceType(draft.suggestedResourceType());
             rec.setPriorityRank(draft.priorityRank());
             rec.setSourceGapSeverity(gap.getRiskSeverity().name());
+            rec.setRelevanceScore(Math.round(relevanceScore * 10.0) / 10.0);
             saved.add(recommendationRepository.save(rec));
         }
 
@@ -377,6 +387,7 @@ public class RecommendationService {
                 .suggestedResourceType(rec.getSuggestedResourceType())
                 .priorityRank(rec.getPriorityRank())
                 .sourceGapSeverity(rec.getSourceGapSeverity())
+                .relevanceScore(rec.getRelevanceScore())
                 .generatedAt(rec.getGeneratedAt())
                 .build();
     }

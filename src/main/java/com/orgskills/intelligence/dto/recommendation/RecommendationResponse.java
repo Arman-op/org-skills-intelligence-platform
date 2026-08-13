@@ -20,5 +20,6 @@ public class RecommendationResponse {
     private String suggestedResourceType;
     private Integer priorityRank;
     private String sourceGapSeverity;
+    private Double relevanceScore;
     private LocalDateTime generatedAt;
 }

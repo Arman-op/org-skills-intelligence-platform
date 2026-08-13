@@ -62,10 +62,22 @@ public class NotificationService {
                 .toList();
     }
 
+    public List<NotificationResponse> getUserNotifications(Long userId) {
+        return getByUser(userId);
+    }
+
     @Transactional
     public NotificationResponse markAsRead(Long id) {
         Notification notification = notificationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Notification not found for id: " + id));
+        notification.setIsRead(true);
+        return toResponse(notificationRepository.save(notification));
+    }
+
+    @Transactional
+    public NotificationResponse markAsRead(Long userId, Long notificationId) {
+        Notification notification = notificationRepository.findById(notificationId)
+                .orElseThrow(() -> new ResourceNotFoundException("Notification not found for id: " + notificationId));
         notification.setIsRead(true);
         return toResponse(notificationRepository.save(notification));
     }

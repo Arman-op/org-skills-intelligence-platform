@@ -36,6 +36,16 @@ public class AuthController {
         return ResponseEntity.ok(authService.login(request));
     }
 
+    @PostMapping("/refresh")
+    public ResponseEntity<AuthResponse> refresh(@Valid @RequestBody com.orgskills.intelligence.dto.auth.RefreshTokenRequest request) {
+        return ResponseEntity.ok(authService.refresh(request));
+    }
+
+    @PostMapping("/oauth2/google")
+    public ResponseEntity<AuthResponse> oauth2Google(@Valid @RequestBody com.orgskills.intelligence.dto.auth.OAuth2GoogleRequest request) {
+        return ResponseEntity.ok(authService.oauth2GoogleLogin(request));
+    }
+
     @GetMapping("/me")
     public ResponseEntity<UserProfileResponse> me(Authentication authentication) {
         return ResponseEntity.ok(authService.getCurrentUser(authentication));
