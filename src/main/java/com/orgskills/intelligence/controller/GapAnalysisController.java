@@ -5,6 +5,7 @@ import com.orgskills.intelligence.dto.gap.GapAnalysisResponse;
 import com.orgskills.intelligence.dto.gap.OrgGapMetricsResponse;
 import com.orgskills.intelligence.dto.gap.UserGapSummaryResponse;
 import com.orgskills.intelligence.service.GapAnalysisService;
+import com.orgskills.intelligence.service.HeatmapVisualizationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,6 +23,7 @@ import java.util.List;
 public class GapAnalysisController {
 
     private final GapAnalysisService gapAnalysisService;
+    private final HeatmapVisualizationService heatmapVisualizationService;
 
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<GapAnalysisResponse>> getUserGaps(@PathVariable Long userId) {
@@ -65,4 +67,12 @@ public class GapAnalysisController {
     public ResponseEntity<OrgGapMetricsResponse> getOrgGapMetrics() {
         return ResponseEntity.ok(gapAnalysisService.getOrgGapMetrics());
     }
+
+    @GetMapping("/heatmap/matrix")
+    public ResponseEntity<com.orgskills.intelligence.dto.heatmap.HeatmapMatrixResponse> getHeatmapMatrix(
+            @RequestParam(required = false) String department,
+            @RequestParam(required = false) String category) {
+        return ResponseEntity.ok(heatmapVisualizationService.getHeatmapMatrix(department, category));
+    }
 }
+
