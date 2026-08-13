@@ -7,11 +7,12 @@ import com.orgskills.intelligence.dto.ld.CourseRequest;
 import com.orgskills.intelligence.dto.ld.CourseResponse;
 import com.orgskills.intelligence.dto.ld.LearningPathRequest;
 import com.orgskills.intelligence.dto.ld.LearningPathResponse;
+import com.orgskills.intelligence.dto.ld.LearningPathStepResponse;
 import com.orgskills.intelligence.entity.Certification;
 import com.orgskills.intelligence.entity.Course;
 import com.orgskills.intelligence.entity.Enrollment;
 import com.orgskills.intelligence.entity.LearningPath;
-import com.orgskills.intelligence.entity.LearningPathCourse;
+import com.orgskills.intelligence.entity.LearningPathStep;
 import com.orgskills.intelligence.entity.Skill;
 import com.orgskills.intelligence.entity.enums.CertificationStatus;
 import com.orgskills.intelligence.entity.enums.EnrollmentStatus;
@@ -130,11 +131,15 @@ public class LndAdminService {
             for (Long cid : request.getCourseIds()) {
                 Course course = courseRepository.findById(cid).orElse(null);
                 if (course != null) {
-                    LearningPathCourse lpc = new LearningPathCourse();
-                    lpc.setLearningPath(lp);
-                    lpc.setCourse(course);
-                    lpc.setSequenceOrder(seq++);
-                    lp.getPathCourses().add(lpc);
+                    LearningPathStep step = LearningPathStep.builder()
+                            .learningPath(lp)
+                            .course(course)
+                            .stepOrder(seq++)
+                            .difficultyStage(course.getDifficulty() != null ? course.getDifficulty().toUpperCase() : "BEGINNER")
+                            .estimatedHours(course.getDurationHours() != null ? (int) Math.round(course.getDurationHours()) : 10)
+                            .status("NOT_STARTED")
+                            .build();
+                    lp.getSteps().add(step);
                 }
             }
         }
@@ -155,17 +160,21 @@ public class LndAdminService {
         lp.setTargetDepartment(request.getTargetDepartment());
         lp.setTargetSeverity(request.getTargetSeverity());
 
-        lp.getPathCourses().clear();
+        lp.getSteps().clear();
         if (request.getCourseIds() != null && !request.getCourseIds().isEmpty()) {
             int seq = 1;
             for (Long cid : request.getCourseIds()) {
                 Course course = courseRepository.findById(cid).orElse(null);
                 if (course != null) {
-                    LearningPathCourse lpc = new LearningPathCourse();
-                    lpc.setLearningPath(lp);
-                    lpc.setCourse(course);
-                    lpc.setSequenceOrder(seq++);
-                    lp.getPathCourses().add(lpc);
+                    LearningPathStep step = LearningPathStep.builder()
+                            .learningPath(lp)
+                            .course(course)
+                            .stepOrder(seq++)
+                            .difficultyStage(course.getDifficulty() != null ? course.getDifficulty().toUpperCase() : "BEGINNER")
+                            .estimatedHours(course.getDurationHours() != null ? (int) Math.round(course.getDurationHours()) : 10)
+                            .status("NOT_STARTED")
+                            .build();
+                    lp.getSteps().add(step);
                 }
             }
         }
@@ -288,19 +297,46 @@ public class LndAdminService {
     }
 
     private LearningPathResponse toLearningPathResponse(LearningPath lp) {
-        List<CourseResponse> courses = lp.getPathCourses().stream()
-                .map(lpc -> toCourseResponse(lpc.getCourse()))
-                .toList();
+        List<CourseResponse> courses = lp.getSteps() != null ? lp.getSteps().stream()
+                .filter(s -> s.getCourse() != null)
+                .map(s -> toCourseResponse(s.getCourse()))
+                .toList() : List.of();
+
+        List<LearningPathStepResponse> stepResponses = lp.getSteps() != null ? lp.getSteps().stream()
+                .map(s -> LearningPathStepResponse.builder()
+                        .id(s.getId())
+                        .learningPathId(lp.getId())
+                        .courseId(s.getCourse() != null ? s.getCourse().getId() : null)
+                        .courseTitle(s.getCourse() != null ? s.getCourse().getTitle() : null)
+                        .courseDescription(s.getCourse() != null ? s.getCourse().getDescription() : null)
+                        .provider(s.getCourse() != null ? s.getCourse().getProvider() : null)
+                        .externalUrl(s.getCourse() != null ? s.getCourse().getExternalUrl() : null)
+                        .isInternal(s.getCourse() != null ? s.getCourse().getIsInternal() : null)
+                        .stepOrder(s.getStepOrder())
+                        .difficultyStage(s.getDifficultyStage())
+                        .estimatedHours(s.getEstimatedHours())
+                        .status(s.getStatus())
+                        .completedAt(s.getCompletedAt())
+                        .build())
+                .toList() : List.of();
 
         return LearningPathResponse.builder()
                 .id(lp.getId())
+                .employeeId(lp.getEmployee() != null ? lp.getEmployee().getId() : null)
+                .employeeName(lp.getEmployee() != null ? lp.getEmployee().getFullName() : null)
+                .targetSkillId(lp.getTargetSkill() != null ? lp.getTargetSkill().getId() : null)
+                .targetSkillName(lp.getTargetSkill() != null ? lp.getTargetSkill().getName() : null)
                 .title(lp.getTitle())
                 .description(lp.getDescription())
                 .targetRole(lp.getTargetRole())
                 .targetDepartment(lp.getTargetDepartment())
                 .targetSeverity(lp.getTargetSeverity())
+                .totalEstimatedHours(lp.getTotalEstimatedHours() != null ? lp.getTotalEstimatedHours() : 0)
+                .status(lp.getStatus() != null ? lp.getStatus() : "NOT_STARTED")
+                .overallProgressPercent(lp.getOverallProgressPercent() != null ? lp.getOverallProgressPercent() : 0)
+                .noCoursesAvailable(lp.getNoCoursesAvailable() != null ? lp.getNoCoursesAvailable() : false)
+                .steps(stepResponses)
                 .courses(courses)
-                .createdAt(lp.getCreatedAt())
                 .build();
     }
 

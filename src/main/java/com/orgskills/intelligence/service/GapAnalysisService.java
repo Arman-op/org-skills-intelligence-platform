@@ -37,6 +37,8 @@ public class GapAnalysisService {
     private final GapAnalysisRepository gapAnalysisRepository;
     private final NotificationService notificationService;
     private final RecommendationService recommendationService;
+    @org.springframework.context.annotation.Lazy
+    private final LearningPathService learningPathService;
 
     @Transactional
     public List<GapAnalysisResponse> calculateAndFetchUserGaps(Long userId) {
@@ -62,6 +64,12 @@ public class GapAnalysisService {
 
         // Auto-regenerate recommendations whenever gaps are recalculated
         recommendationService.generateRecommendations(userId);
+
+        try {
+            learningPathService.onGapsUpdated(userId, savedGaps);
+        } catch (Exception ex) {
+            // Ignore optional hook failure
+        }
 
         return savedGaps.stream().map(this::toResponse).toList();
     }
