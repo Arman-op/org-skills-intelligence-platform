@@ -1,10 +1,4 @@
 -- data.sql
-INSERT INTO users (name, email, role, department) VALUES 
-('Alice Smith', 'alice@example.com', 'Senior Frontend', 'Engineering'),
-('Bob Jones', 'bob@example.com', 'Backend Engineer', 'Engineering'),
-('Carol White', 'carol@example.com', 'DevOps', 'Platform'),
-('Dave Brown', 'dave@example.com', 'Marketing Lead', 'Marketing');
-
 INSERT INTO skills (name, category, description) VALUES
 ('React', 'Frontend', 'React.js and UI components'),
 ('CSS', 'Frontend', 'Cascading Style Sheets & Design'),

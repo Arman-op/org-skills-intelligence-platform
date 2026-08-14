@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { fetchSkills, fetchEmployeeSkills, saveEmployeeSkill, updateEmployeeSkill } from '../services/employeeSkills';
+import { buildImprovementPayload, saveEmployeeImprovement } from '../services/employeeImprovement';
 
 const allSkills = [
   { name: 'React.js', category: 'Frontend', level: 'Expert',   employees: 42, gap: 12, trending: true  },
@@ -24,15 +26,71 @@ const levelColors = {
   Beginner: 'beginner',
 };
 
+const proficiencyLevels = [
+  { label: 'Beginner', value: 1 },
+  { label: 'Intermediate', value: 2 },
+  { label: 'Advanced', value: 3 },
+  { label: 'Expert', value: 4 },
+];
+
 const Skills = () => {
   const [active, setActive] = useState('All');
   const [search, setSearch] = useState('');
+  const [catalog, setCatalog] = useState([]);
+  const [employeeSkills, setEmployeeSkills] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
 
-  const filtered = allSkills.filter(s => {
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      const [skills, userSkills] = await Promise.all([fetchSkills(), fetchEmployeeSkills(user.email)]);
+      setCatalog(skills);
+      setEmployeeSkills(userSkills);
+      setLoading(false);
+    };
+    load();
+  }, [user.email]);
+
+  const mergedSkills = catalog.map((skill) => {
+    const match = employeeSkills.find((es) => es.skillId === skill.id || es.skillName === skill.name);
+    return {
+      ...skill,
+      proficiency: match?.proficiency || 1,
+      targetProficiency: match?.targetProficiency || Math.min((match?.proficiency || 1) + 1, 4),
+      employeeSkillId: match?.id,
+    };
+  });
+
+  const filtered = mergedSkills.filter((s) => {
     const matchCat = active === 'All' || s.category === active;
     const matchSearch = s.name.toLowerCase().includes(search.toLowerCase());
     return matchCat && matchSearch;
   });
+
+  const saveSkillUpdate = async (skill, field, value) => {
+    setSaving(true);
+    try {
+      const payload = {
+        employeeEmail: user.email,
+        skillId: skill.id,
+        skillName: skill.name,
+        proficiency: field === 'proficiency' ? value : skill.proficiency,
+        targetProficiency: field === 'targetProficiency' ? value : skill.targetProficiency,
+      };
+      if (skill.employeeSkillId) {
+        await updateEmployeeSkill(skill.employeeSkillId, payload);
+      } else {
+        await saveEmployeeSkill(payload);
+      }
+      const userSkills = await fetchEmployeeSkills(user.email);
+      setEmployeeSkills(userSkills);
+      saveEmployeeImprovement(buildImprovementPayload({ user, examResults: user.examResults || {}, enrolledCourses: user.enrolledCourses || [] }));
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div>
@@ -76,35 +134,58 @@ const Skills = () => {
           <div className="skill-card" key={i} style={{ animationDelay: `${i * 0.05}s` }}>
             <div className="skill-card-top">
               <div>
-                <div className="skill-category">{skill.category}</div>
+                <div className="skill-category">{skill.category || 'General'}</div>
                 <div className="skill-name">{skill.name}</div>
               </div>
-              <span className={`skill-level ${levelColors[skill.level]}`}>{skill.level}</span>
+              <span className={`skill-level ${levelColors[skill.level || 'Beginner']}`}>{skill.level || 'Beginner'}</span>
             </div>
 
-            <div style={{ display:'flex', justifyContent:'space-between', marginBottom:'6px' }}>
-              <span style={{ fontSize:'0.75rem', color:'var(--text-muted)' }}>Coverage</span>
-              <span style={{ fontSize:'0.75rem', fontWeight:700, color: skill.gap > 40 ? 'var(--danger)' : skill.gap > 20 ? 'var(--warning)' : 'var(--success)' }}>
-                Gap: {skill.gap}%
+            <div style={{ display:'grid', gap:'0.75rem', marginBottom:'1rem' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', gap:'1rem', fontSize:'0.85rem' }}>
+                <div>
+                  <div style={{ color:'var(--text-muted)', fontSize:'0.75rem' }}>Current proficiency</div>
+                  <div style={{ fontWeight:700 }}>{proficiencyLevels.find((item) => item.value === skill.proficiency)?.label || 'Beginner'}</div>
+                </div>
+                <div>
+                  <div style={{ color:'var(--text-muted)', fontSize:'0.75rem' }}>Target level</div>
+                  <div style={{ fontWeight:700 }}>{proficiencyLevels.find((item) => item.value === skill.targetProficiency)?.label || 'Intermediate'}</div>
+                </div>
+              </div>
+              <div style={{ display:'grid', gap:'0.75rem' }}>
+                <label style={{ fontSize:'0.8rem', color:'var(--text-muted)' }}>
+                  Improve proficiency:
+                  <select
+                    value={skill.proficiency}
+                    onChange={(e) => saveSkillUpdate(skill, 'proficiency', Number(e.target.value))}
+                    disabled={saving}
+                    style={{ width:'100%', marginTop:'0.45rem', padding:'0.6rem 0.75rem', borderRadius: 10, background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.12)', color:'#fff' }}
+                  >
+                    {proficiencyLevels.map((level) => (
+                      <option key={level.value} value={level.value}>{level.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label style={{ fontSize:'0.8rem', color:'var(--text-muted)' }}>
+                  Set target level:
+                  <select
+                    value={skill.targetProficiency}
+                    onChange={(e) => saveSkillUpdate(skill, 'targetProficiency', Number(e.target.value))}
+                    disabled={saving}
+                    style={{ width:'100%', marginTop:'0.45rem', padding:'0.6rem 0.75rem', borderRadius: 10, background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.12)', color:'#fff' }}
+                  >
+                    {proficiencyLevels.map((level) => (
+                      <option key={level.value} value={level.value}>{level.label}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </div>
+
+            <div className="skill-meta" style={{ justifyContent:'space-between', alignItems:'center' }}>
+              <span>📈 {skill.employeeSkillId ? 'Tracked skill' : 'New skill'}</span>
+              <span style={{ color: skill.proficiency >= skill.targetProficiency ? '#10b981' : '#f59e0b', fontWeight: 700 }}>
+                {skill.proficiency >= skill.targetProficiency ? 'On track' : 'Learning gap'}
               </span>
-            </div>
-            <div className="progress-bar">
-              <div
-                className="progress-fill"
-                style={{
-                  width: `${100 - skill.gap}%`,
-                  background: skill.gap > 40
-                    ? 'linear-gradient(90deg, #ef4444, #f87171)'
-                    : skill.gap > 20
-                    ? 'linear-gradient(90deg, #f59e0b, #fbbf24)'
-                    : 'linear-gradient(90deg, #10b981, #34d399)',
-                }}
-              />
-            </div>
-
-            <div className="skill-meta">
-              <span>👥 {skill.employees} employees</span>
-              {skill.trending && <span style={{ color:'#ec4899' }}>🔥 Trending</span>}
             </div>
           </div>
         ))}

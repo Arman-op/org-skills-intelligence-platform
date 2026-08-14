@@ -2,13 +2,16 @@
 DROP TABLE IF EXISTS user_skills;
 DROP TABLE IF EXISTS skills;
 DROP TABLE IF EXISTS training_programs;
+DROP TABLE IF EXISTS employee_improvements;
 DROP TABLE IF EXISTS users;
 
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
-    role VARCHAR(50),
+    password VARCHAR(255),
+    role VARCHAR(100),
+    target_role VARCHAR(150),
     department VARCHAR(100)
 );
 
@@ -34,4 +37,17 @@ CREATE TABLE training_programs (
     url VARCHAR(500),
     target_skill_category VARCHAR(100),
     duration_hours INT
+);
+
+CREATE TABLE employee_improvements (
+    id SERIAL PRIMARY KEY,
+    employee_email VARCHAR(255) UNIQUE NOT NULL,
+    employee_name VARCHAR(255),
+    role VARCHAR(100),
+    target_role VARCHAR(100),
+    overall_score INT,
+    gap_summary TEXT,
+    enrolled_courses TEXT,
+    improvement_summary TEXT,
+    last_updated TIMESTAMP
 );

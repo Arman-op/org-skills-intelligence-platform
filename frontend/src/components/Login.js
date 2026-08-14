@@ -15,17 +15,19 @@ function Login() {
     try {
       // Send login request to the Spring Boot backend API
       const response = await axios.post('http://localhost:8080/api/auth/login', {
-        username,
+        email: username,
         password,
       });
 
-      // Save the returned JWT token and role in localStorage
-      const { token, role } = response.data;
-      localStorage.setItem('token', token);
-      localStorage.setItem('role', role);
+      // Save the returned JWT token, refresh token and role in localStorage
+      const { token, refreshToken, user } = response.data;
+      if (token) localStorage.setItem('token', token);
+      if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+      if (user) localStorage.setItem('user', JSON.stringify(user));
 
-      // Redirect user based on their role
-      if (role === 'ROLE_ADMIN') {
+      // Redirect user based on role (fallback to dashboard)
+      const role = user?.role || localStorage.getItem('role');
+      if (role && role.toLowerCase().includes('admin')) {
         navigate('/admin');
       } else {
         navigate('/dashboard');

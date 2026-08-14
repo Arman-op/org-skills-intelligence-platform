@@ -1,5 +1,6 @@
 import React from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { clearSession, defaultPermissionsForRole, getStoredUser, roleFamily, apiFetch } from '../services/platformApi';
 
 const icons = {
   dashboard: (
@@ -36,6 +37,39 @@ const icons = {
       <path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" strokeWidth="2"/>
     </svg>
   ),
+  profile: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" stroke="currentColor" strokeWidth="2"/>
+      <path d="M4 20c0-4 4-6 8-6s8 2 8 6" stroke="currentColor" strokeWidth="2"/>
+    </svg>
+  ),
+  aiPlan: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <path d="M12 3v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+      <path d="M16.24 7.76l-2.83 2.83" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+      <path d="M21 12h-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+      <path d="M16.24 16.24l-2.83-2.83" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+      <path d="M12 21v-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+      <path d="M7.76 16.24l2.83-2.83" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+      <path d="M3 12h4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+      <path d="M7.76 7.76l2.83 2.83" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+  ),
+  exam: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" stroke="currentColor" strokeWidth="2"/>
+      <rect x="9" y="3" width="6" height="4" rx="2" stroke="currentColor" strokeWidth="2"/>
+      <line x1="9" y1="12" x2="15" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+      <line x1="9" y1="16" x2="12" y2="16" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+    </svg>
+  ),
+  gap: (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <polygon points="12,2 22,20 2,20" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/>
+      <line x1="12" y1="9" x2="12" y2="13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+      <circle cx="12" cy="17" r="0.5" fill="currentColor" stroke="currentColor" strokeWidth="1.5"/>
+    </svg>
+  ),
   bell: (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
       <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="currentColor" strokeWidth="2"/>
@@ -57,24 +91,44 @@ const icons = {
   ),
 };
 
-const navItems = [
-  { name: 'Dashboard',    path: '/app',             icon: icons.dashboard, badge: null },
-  { name: 'Skill Inventory', path: '/app/skills',   icon: icons.skills,   badge: null },
-  { name: 'Gap Analytics',   path: '/app/analytics',icon: icons.analytics,badge: null },
-  { name: 'Trainings',       path: '/app/trainings', icon: icons.trainings, badge: '3' },
-  { name: 'Mentorship',      path: '/app/mentorship',icon: icons.mentorship, badge: null },
-];
-
 const Layout = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const user = JSON.parse(localStorage.getItem('user') || '{"name":"Admin User","email":"admin@company.com","role":"HR Manager"}');
-  const initials = (user.name || 'AU').split(' ').map(n => n[0]).join('').toUpperCase();
+  const user = getStoredUser();
+  const role = user.role || user.accountType || 'Employee';
+  const family = roleFamily(role);
+  const permissions = new Set(user.permissions || defaultPermissionsForRole(role));
+  const initials = (user.name || 'U').split(' ').map(n => n[0]).join('').toUpperCase();
+  const isAdmin = family !== 'employee';
+  const hasExamResults = !!user.examResults;
 
-  const currentPage = navItems.find(n => n.path === location.pathname)?.name || 'Dashboard';
+  const navItems = [
+    { name: 'Dashboard',       path: '/app',               icon: icons.dashboard,  badge: null, show: true },
+    { name: 'Profile',         path: '/app/profile',       icon: icons.profile,    badge: null, show: true },
+    { name: 'AI Plan',         path: '/app/ai-plan',       icon: icons.aiPlan,     badge: null, show: true },
+    { name: 'Skill Inventory', path: '/app/skills',        icon: icons.skills,     badge: null, show: true },
+    { name: 'Gap Analytics',   path: '/app/analytics',     icon: icons.analytics,  badge: null, show: permissions.has('view_team_skill_coverage') || permissions.has('organization_gap_intelligence') || permissions.has('system_monitoring') },
+    { name: 'Trainings',       path: '/app/trainings',     icon: icons.trainings,  badge: '3',  show: true },
+    { name: 'Mentorship',      path: '/app/mentorship',    icon: icons.mentorship, badge: null, show: true },
+    { name: 'My Assessment',   path: '/app/exam',          icon: icons.exam,       badge: null, show: family === 'employee' },
+    { name: 'My Gap Analysis', path: '/app/gap-analysis',  icon: icons.gap,        badge: hasExamResults ? null : '!', show: family === 'employee' },
+    { name: 'Admin Tracker',   path: '/app/admin',         icon: icons.settings,   badge: null, show: permissions.has('user_management') || permissions.has('role_management') || permissions.has('training_catalog_management') },
+  ].filter(n => n.show);
+
+  const currentPage = navItems.find(n =>
+    n.path === location.pathname || (n.path !== '/app' && location.pathname.startsWith(n.path))
+  )?.name || 'Dashboard';
 
   const handleLogout = () => {
-    localStorage.removeItem('user');
+    try {
+      const email = getStoredUser().email;
+      if (email) {
+        apiFetch('/auth/logout', { method: 'POST', body: JSON.stringify({ email }) });
+      }
+    } catch (e) {
+      // ignore
+    }
+    clearSession();
     navigate('/');
   };
 
@@ -94,20 +148,29 @@ const Layout = () => {
           </div>
         </div>
 
+        {/* Role badge */}
+        <div style={{ margin: '0.75rem 1.25rem', padding: '0.5rem 0.85rem', borderRadius: 8, background: isAdmin ? 'rgba(236,72,153,0.1)' : 'rgba(99,102,241,0.1)', border: `1px solid ${isAdmin ? 'rgba(236,72,153,0.25)' : 'rgba(99,102,241,0.25)'}`, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span style={{ fontSize: '1rem' }}>{isAdmin ? '🛡️' : '👤'}</span>
+          <div>
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: isAdmin ? '#ec4899' : '#a5b4fc' }}>{role}</div>
+            {!isAdmin && user.targetRole && <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Targeting: {user.targetRole.replace('_', ' ')}</div>}
+          </div>
+        </div>
+
         <div className="sidebar-section-label">Main Menu</div>
         <nav className="sidebar-nav">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path ||
               (item.path !== '/app' && location.pathname.startsWith(item.path));
             return (
-              <Link 
+              <Link
                 key={item.path}
                 to={item.path}
                 className={`nav-item ${isActive ? 'active' : ''}`}
               >
                 <span className="nav-icon">{item.icon}</span>
                 <span>{item.name}</span>
-                {item.badge && <span className="nav-badge">{item.badge}</span>}
+                {item.badge && <span className="nav-badge" style={item.badge === '!' ? { background: '#ef4444' } : {}}>{item.badge}</span>}
               </Link>
             );
           })}
@@ -129,8 +192,8 @@ const Layout = () => {
           <div className="user-card">
             <div className="user-avatar">{initials}</div>
             <div>
-              <div className="user-info-name">{user.name || 'Admin User'}</div>
-              <div className="user-info-role">{user.role || 'HR Manager'}</div>
+              <div className="user-info-name">{user.name || 'User'}</div>
+              <div className="user-info-role">{role}</div>
             </div>
           </div>
         </div>
@@ -160,7 +223,7 @@ const Layout = () => {
             <div className="icon-btn">
               {icons.settings}
             </div>
-            <div className="user-avatar" style={{ width:38, height:38, borderRadius:10, cursor:'pointer' }}>
+            <div className="user-avatar" style={{ width: 38, height: 38, borderRadius: 10, cursor: 'pointer' }}>
               {initials}
             </div>
           </div>

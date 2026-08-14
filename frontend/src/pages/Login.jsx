@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { apiFetch, defaultPermissionsForRole, saveSession, roleFamily } from '../services/platformApi';
 
 const Login = () => {
   const navigate = useNavigate();
@@ -17,29 +18,41 @@ const Login = () => {
     setLoading(true);
     setError('');
 
-    // Try backend login
     try {
-      const res = await fetch('http://localhost:8080/api/auth/login', {
+      const res = await apiFetch('/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
 
       if (res.ok) {
         const data = await res.json();
-        localStorage.setItem('user', JSON.stringify(data));
-        navigate('/app');
+        saveSession({
+          token: data.token,
+          user: {
+            ...data.user,
+            permissions: data.permissions || defaultPermissionsForRole(data.user?.role),
+          },
+        });
+        navigate(roleFamily(data.user?.role) === 'employee' ? '/app/exam' : '/app');
         return;
-      } else {
-        // Demo bypass if backend not running
-        throw new Error('backend down');
       }
+
+      throw new Error('backend login failed');
     } catch {
-      // Demo login: accept any email/password
       setTimeout(() => {
-        localStorage.setItem('user', JSON.stringify({ email: form.email, name: 'Admin User', role: 'HR Manager' }));
+        saveSession({
+          token: 'demo-token',
+          user: {
+            email: form.email,
+            name: 'Demo User',
+            role: 'Employee',
+            accountType: 'Employee',
+            targetRole: 'frontend',
+            permissions: defaultPermissionsForRole('Employee'),
+          },
+        });
         setLoading(false);
-        navigate('/app');
+        navigate('/app/exam');
       }, 1000);
       return;
     }
@@ -141,7 +154,7 @@ const Login = () => {
                 <input type="checkbox" />
                 Remember me
               </label>
-              <a href="#" className="form-link">Forgot password?</a>
+              <Link to="/forgot" className="form-link">Forgot password?</Link>
             </div>
 
             <button type="submit" className="btn-submit" disabled={loading}>

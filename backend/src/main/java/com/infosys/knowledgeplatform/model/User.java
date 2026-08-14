@@ -17,6 +17,11 @@ public class User {
     @Column(unique = true)
     private String email;
 
-    private String role; // "Admin", "Manager", "Employee"
+    private String password;
+
+    private String role;
+
+    private String targetRole;
+
     private String department;
 }

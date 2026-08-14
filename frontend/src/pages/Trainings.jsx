@@ -1,4 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { SKILL_COURSES } from '../data/examData';
+import { buildLearningResources } from '../services/learningResources';
+import { apiFetch, courseFetch, getStoredUser, roleFamily } from '../services/platformApi';
+import { enrollInProgram } from '../services/enrollments';
 
 const courses = [
   {
@@ -47,22 +51,166 @@ const courses = [
 
 const Trainings = () => {
   const [filter, setFilter] = useState('All');
+  const [roleRecommendations, setRoleRecommendations] = useState([]);
+  const user = getStoredUser();
+  const gapSkills = Object.entries(user.examResults || {})
+    .filter(([, value]) => value.level !== 'strong')
+    .map(([skill, value]) => ({ skill, ...value }));
+
+  const [trainingCatalog, setTrainingCatalog] = useState([]);
+
+  useEffect(() => {
+    const loadRecommendations = async () => {
+      try {
+        const res = await courseFetch(`/learning-paths?role=${encodeURIComponent(user.role || user.accountType || 'Employee')}&email=${encodeURIComponent(user.email || '')}&limit=6`);
+        if (!res.ok) {
+          return;
+        }
+
+        const data = await res.json();
+        setRoleRecommendations(Array.isArray(data.recommendedCourses) ? data.recommendedCourses : []);
+      } catch {
+        setRoleRecommendations([]);
+      }
+    };
+
+    const loadPrograms = async () => {
+      try {
+        const res = await apiFetch('/training-programs');
+        if (!res.ok) return;
+        const data = await res.json();
+        setTrainingCatalog(Array.isArray(data) ? data : []);
+      } catch {
+        setTrainingCatalog([]);
+      }
+    };
+
+    loadRecommendations();
+    loadPrograms();
+  }, [user.email, user.role, user.accountType]);
 
   const levels = ['All', 'Beginner', 'Mid', 'Advanced'];
 
-  const filtered = filter === 'All' ? courses : courses.filter(c => c.level === filter);
+  const toCourseCard = (course, skill, level, gap) => ({
+    ...course,
+    skill,
+    gapLevel: level,
+    gap,
+    bg: course.bg || 'linear-gradient(135deg,#1a1a1a,#2d2d2d)',
+    tags: course.tags || (level === 'critical' ? ['urgent'] : ['new']),
+    tagLabels: course.tagLabels || (level === 'critical' ? ['Critical Gap'] : ['Recommended']),
+    enrolled: course.enrolled || 0,
+    rating: course.rating || 4.5,
+    matchScore: course.matchScore || Math.max(80, 100 - gap),
+  });
+
+  const personalizedCourses = gapSkills.flatMap(({ skill, level, gap }) => {
+    const mappedCourses = SKILL_COURSES[skill] || [];
+    return mappedCourses.map(course => toCourseCard(course, skill, level, gap));
+  });
+
+  const apiCourses = roleRecommendations.map(course => ({
+    emoji: '🎯',
+    bg: 'linear-gradient(135deg,#132238,#0f172a)',
+    title: course.title,
+    provider: course.provider,
+    duration: course.duration || `${course.durationHours || 0}h`,
+    level: course.matchScore >= 85 ? 'Advanced' : course.matchScore >= 65 ? 'Mid' : 'Beginner',
+    tags: ['new'],
+    tagLabels: [course.source || 'Recommended'],
+    enrolled: 0,
+    rating: 4.7,
+    matchScore: course.matchScore || 80,
+    skill: course.category,
+    url: course.url,
+  }));
+
+  const openLearningPage = (skill) => {
+    const resource = buildLearningResources(skill)[0];
+    if (resource?.url) {
+      window.open(resource.url, '_blank', 'noopener,noreferrer');
+    }
+  };
+
+  const [enrolling, setEnrolling] = useState(null);
+
+  const enrollCourse = async (course) => {
+    setEnrolling(course.title);
+    const payload = {
+      employeeEmail: user.email,
+      programId: course.id || null,
+      programTitle: course.title,
+      provider: course.provider,
+      status: 'enrolled'
+    };
+    const res = await enrollInProgram(payload);
+    setEnrolling(null);
+    if (res) {
+      alert('Enrolled: ' + course.title);
+    } else {
+      alert('Failed to enroll.');
+    }
+  };
+
+  const fallbackCourses = gapSkills.length > 0 ? personalizedCourses : courses;
+  const renderedCourses = apiCourses.length > 0 ? apiCourses : fallbackCourses;
+  const filtered = filter === 'All' ? renderedCourses : renderedCourses.filter(c => c.level === filter);
 
   return (
     <div>
       <div className="page-header">
         <div>
           <div className="page-title">Learning & Trainings</div>
-          <div className="page-sub">AI-matched courses based on your organization's skill gaps</div>
+          <div className="page-sub">{gapSkills.length > 0 ? 'Training paths matched to your assessment gaps' : `AI-matched courses for ${roleFamily(user.role || user.accountType || 'Employee')} roles`}</div>
         </div>
         <button className="btn-primary" style={{ padding:'0.6rem 1.25rem', borderRadius:8 }}>
           + Recommend Course
         </button>
       </div>
+
+      {gapSkills.length > 0 && (
+        <div style={{ marginBottom: '1.25rem', padding: '1rem 1.25rem', borderRadius: 12, background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.18)' }}>
+          <div style={{ fontWeight: 700, marginBottom: '0.35rem' }}>Recommended for your gaps</div>
+          <div style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
+            You are weak in {gapSkills.map(s => s.skill).join(', ')}. These courses and resources are sorted to close those gaps first.
+          </div>
+        </div>
+      )}
+
+      {gapSkills.length > 0 && (
+        <div className="gap-learning-stack">
+          {gapSkills.map(({ skill, score, gap, level }) => (
+            <div key={skill} className={`gap-learning-card ${level === 'critical' ? 'critical' : 'moderate'}`}>
+              <div className="gap-learning-head">
+                <div>
+                  <div className="gap-learning-title">{skill}</div>
+                  <div className="gap-learning-subtitle">Current score {score}% • {gap}% gap</div>
+                </div>
+                <span className={`gap-learning-badge ${level === 'critical' ? 'critical' : 'moderate'}`}>
+                  {level === 'critical' ? 'Critical priority' : 'Needs improvement'}
+                </span>
+              </div>
+              <div className="gap-learning-resources">
+                {buildLearningResources(skill).map(resource => (
+                  <a
+                    key={`${skill}-${resource.provider}`}
+                    href={resource.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="gap-learning-resource"
+                  >
+                    <span>{resource.provider}</span>
+                    <span>{resource.type}</span>
+                  </a>
+                ))}
+              </div>
+              <button className="gap-learning-action" onClick={() => openLearningPage(skill)}>
+                Start learning {skill} →
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Stats */}
       <div style={{ display:'flex', gap:'1rem', marginBottom:'1.75rem' }}>
@@ -102,6 +250,7 @@ const Trainings = () => {
               </div>
             </div>
             <div className="training-body">
+              {c.skill && <div className="training-focus-pill">Gap focus: {c.skill}</div>}
               <div className="training-tags">
                 {c.tags.map((t, ti) => (
                   <span key={ti} className={`tag ${t}`}>{c.tagLabels[ti]}</span>
@@ -116,11 +265,28 @@ const Trainings = () => {
               <div style={{ fontSize:'0.78rem', color:'var(--text-muted)', marginBottom:'0.75rem' }}>
                 by {c.provider}
               </div>
+              {c.skill && (
+                <div className="training-resource-links">
+                  {buildLearningResources(c.skill).map(resource => (
+                    <a
+                      key={`${c.skill}-${resource.provider}`}
+                      href={resource.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="training-resource-link"
+                    >
+                      {resource.provider}
+                    </a>
+                  ))}
+                </div>
+              )}
               <div className="training-footer">
                 <span style={{ fontSize:'0.78rem', color:'var(--text-secondary)' }}>
                   👥 {c.enrolled.toLocaleString()} enrolled
                 </span>
-                <button className="btn-enroll">Enroll Now →</button>
+                <button className="btn-enroll" onClick={() => c.url ? window.open(c.url, '_blank', 'noopener,noreferrer') : enrollCourse(c)} disabled={enrolling === c.title}>
+                  {enrolling === c.title ? 'Enrolling…' : 'Start Learning'}
+                </button>
               </div>
             </div>
           </div>
