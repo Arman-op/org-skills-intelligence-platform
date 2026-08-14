@@ -38,6 +38,8 @@ public class Course {
 
     private Double durationHours;
 
+    private String durationLabel;
+
     @Column(nullable = false)
     private Boolean isInternal = true;
 
@@ -50,6 +52,10 @@ public class Course {
     }
 
     public Course(Long id, String title, String description, String provider, Skill skillCovered, String difficulty, Double durationHours, Boolean isInternal, String externalUrl, Instant createdAt) {
+        this(id, title, description, provider, skillCovered, difficulty, durationHours, null, isInternal, externalUrl, createdAt);
+    }
+
+    public Course(Long id, String title, String description, String provider, Skill skillCovered, String difficulty, Double durationHours, String durationLabel, Boolean isInternal, String externalUrl, Instant createdAt) {
         this.id = id;
         this.title = title;
         this.description = description;
@@ -57,6 +63,7 @@ public class Course {
         this.skillCovered = skillCovered;
         this.difficulty = difficulty;
         this.durationHours = durationHours;
+        this.durationLabel = durationLabel;
         this.isInternal = isInternal;
         this.externalUrl = externalUrl;
         this.createdAt = createdAt;
@@ -121,6 +128,14 @@ public class Course {
 
     public void setDurationHours(Double durationHours) {
         this.durationHours = durationHours;
+    }
+
+    public String getDurationLabel() {
+        return durationLabel;
+    }
+
+    public void setDurationLabel(String durationLabel) {
+        this.durationLabel = durationLabel;
     }
 
     public Boolean getIsInternal() {
