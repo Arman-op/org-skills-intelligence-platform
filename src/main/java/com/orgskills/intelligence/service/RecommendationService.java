@@ -2,6 +2,7 @@ package com.orgskills.intelligence.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.orgskills.intelligence.dto.recommendation.CourseRecommendationScore;
 import com.orgskills.intelligence.dto.recommendation.RecommendationResponse;
 import com.orgskills.intelligence.entity.GapAnalysis;
 import com.orgskills.intelligence.entity.Skill;
@@ -38,6 +39,7 @@ public class RecommendationService {
     private final UserRepository userRepository;
     private final GapAnalysisRepository gapAnalysisRepository;
     private final TrainingRecommendationRepository recommendationRepository;
+    private final RecommendationScoringService recommendationScoringService;
     private final ObjectMapper objectMapper;
 
     private final HttpClient httpClient = HttpClient.newBuilder()
@@ -57,12 +59,12 @@ public class RecommendationService {
     private boolean mockEnabled;
 
     private static final String SYSTEM_PROMPT = """
-            You are a corporate learning advisor. Given an employee's role and their \
-            skill gaps, generate personalized, specific, and actionable training \
-            recommendations. For each skill gap provided, return ONE recommendation \
-            explaining why it matters for their role and what they should focus on \
-            first. Be concise (2-3 sentences per recommendation). Respond ONLY with \
-            valid JSON in this exact shape:
+            You are a corporate learning advisor. Given an employee's role, their \
+            skill gaps, and pre-ranked top recommended courses, generate personalized, \
+            specific, and actionable training recommendations. For each skill gap provided, \
+            return ONE recommendation explaining why it matters for their role and what \
+            they should focus on first. Be concise (2-3 sentences per recommendation). \
+            Respond ONLY with valid JSON in this exact shape:
             
             [
               {
@@ -86,8 +88,17 @@ public class RecommendationService {
             return List.of();
         }
 
+        // Call shared RecommendationScoringService for unified ranking
+        List<CourseRecommendationScore> rankedScores = recommendationScoringService.scoreCoursesForEmployee(employeeId);
+        Map<Long, CourseRecommendationScore> topScoreBySkillId = rankedScores.stream()
+                .collect(Collectors.toMap(
+                        cs -> cs.getSkill().getId(),
+                        Function.identity(),
+                        (a, b) -> a.getScore() >= b.getScore() ? a : b
+                ));
+
         // Resolve recommendation drafts via LLM, mock, or fallback
-        List<RecommendationDraft> drafts = resolveDrafts(employee, gaps);
+        List<RecommendationDraft> drafts = resolveDrafts(employee, gaps, rankedScores);
 
         // Delete old recommendations before saving new ones
         recommendationRepository.deleteByEmployeeId(employeeId);
@@ -120,14 +131,25 @@ public class RecommendationService {
                 continue;
             }
 
-            double scoreMultiplier = gap.getGapScore() * 20.0;
-            double severityBonus = switch (gap.getRiskSeverity()) {
-                case CRITICAL -> 30.0;
-                case HIGH -> 20.0;
-                case MEDIUM -> 10.0;
-                case LOW -> 5.0;
-            };
-            double relevanceScore = Math.min(100.0, scoreMultiplier + severityBonus);
+            CourseRecommendationScore scoredCourse = topScoreBySkillId.get(skill.getId());
+            double relevanceScore;
+            String scoreBreakdown;
+
+            if (scoredCourse != null) {
+                relevanceScore = scoredCourse.getScore();
+                scoreBreakdown = scoredCourse.getScoreBreakdown();
+            } else {
+                double scoreMultiplier = gap.getGapScore() * 20.0;
+                double severityBonus = switch (gap.getRiskSeverity()) {
+                    case CRITICAL -> 30.0;
+                    case HIGH -> 20.0;
+                    case MEDIUM -> 10.0;
+                    case LOW -> 5.0;
+                };
+                relevanceScore = Math.min(100.0, scoreMultiplier + severityBonus);
+                scoreBreakdown = String.format("Gap Severity: %.1f (from gap score %.1f, severity %s)",
+                        relevanceScore, gap.getGapScore(), gap.getRiskSeverity().name());
+            }
 
             TrainingRecommendation rec = new TrainingRecommendation();
             rec.setEmployee(employee);
@@ -137,6 +159,7 @@ public class RecommendationService {
             rec.setPriorityRank(draft.priorityRank());
             rec.setSourceGapSeverity(gap.getRiskSeverity().name());
             rec.setRelevanceScore(Math.round(relevanceScore * 10.0) / 10.0);
+            rec.setScoreBreakdown(scoreBreakdown);
             saved.add(recommendationRepository.save(rec));
         }
 
@@ -156,7 +179,7 @@ public class RecommendationService {
 
     // ── Draft resolution: mock → LLM → fallback ────────────────────────────────
 
-    private List<RecommendationDraft> resolveDrafts(User employee, List<GapAnalysis> gaps) {
+    private List<RecommendationDraft> resolveDrafts(User employee, List<GapAnalysis> gaps, List<CourseRecommendationScore> rankedScores) {
         if (mockEnabled) {
             log.info("LLM mock mode is enabled — returning mock recommendations");
             return mockRecommendations(employee, gaps);
@@ -169,9 +192,9 @@ public class RecommendationService {
 
         try {
             if (openAiBaseUrl.contains("googleapis.com") || (openAiApiKey != null && openAiApiKey.startsWith("AQ"))) {
-                return callGemini(employee, gaps);
+                return callGemini(employee, gaps, rankedScores);
             }
-            return callOpenAi(employee, gaps);
+            return callOpenAi(employee, gaps, rankedScores);
         } catch (Exception ex) {
             log.error("LLM call failed — falling back to rule-based recommendations", ex);
             return fallbackRecommendations(employee, gaps);
@@ -180,9 +203,9 @@ public class RecommendationService {
 
     // ── LLM calls ───────────────────────────────────────────────────────────────
 
-    private List<RecommendationDraft> callGemini(User employee, List<GapAnalysis> gaps)
+    private List<RecommendationDraft> callGemini(User employee, List<GapAnalysis> gaps, List<CourseRecommendationScore> rankedScores)
             throws IOException, InterruptedException {
-        String userMessage = buildUserMessage(employee, gaps);
+        String userMessage = buildUserMessage(employee, gaps, rankedScores);
         String promptText = SYSTEM_PROMPT + "\n\n" + userMessage;
 
         var requestJson = objectMapper.createObjectNode();
@@ -223,9 +246,9 @@ public class RecommendationService {
         return parseDrafts(content);
     }
 
-    private List<RecommendationDraft> callOpenAi(User employee, List<GapAnalysis> gaps)
+    private List<RecommendationDraft> callOpenAi(User employee, List<GapAnalysis> gaps, List<CourseRecommendationScore> rankedScores)
             throws IOException, InterruptedException {
-        String userMessage = buildUserMessage(employee, gaps);
+        String userMessage = buildUserMessage(employee, gaps, rankedScores);
 
         var requestJson = objectMapper.createObjectNode();
         requestJson.put("model", openAiModel);
@@ -257,7 +280,7 @@ public class RecommendationService {
         return parseDrafts(content);
     }
 
-    private String buildUserMessage(User employee, List<GapAnalysis> gaps) {
+    private String buildUserMessage(User employee, List<GapAnalysis> gaps, List<CourseRecommendationScore> rankedScores) {
         StringBuilder sb = new StringBuilder();
         sb.append("Employee role: ").append(employee.getJobTitle())
                 .append(" (").append(employee.getDepartment()).append(")\n\n");
@@ -273,6 +296,17 @@ public class RecommendationService {
                     .append("/5 | Required level: ").append(String.format("%.1f", gap.getTargetScore()))
                     .append("/5 | Severity: ").append(gap.getRiskSeverity().name())
                     .append("\n");
+        }
+
+        if (rankedScores != null && !rankedScores.isEmpty()) {
+            sb.append("\nPre-ranked Top Recommended Courses:\n");
+            rankedScores.stream().limit(5).forEach(cs -> {
+                sb.append("- ").append(cs.getCourse().getTitle())
+                        .append(" (Skill: ").append(cs.getSkill().getName())
+                        .append(", Provider: ").append(cs.getCourse().getProvider())
+                        .append(", Score: ").append(cs.getScore())
+                        .append(")\n");
+            });
         }
 
         return sb.toString();
@@ -388,6 +422,7 @@ public class RecommendationService {
                 .priorityRank(rec.getPriorityRank())
                 .sourceGapSeverity(rec.getSourceGapSeverity())
                 .relevanceScore(rec.getRelevanceScore())
+                .scoreBreakdown(rec.getScoreBreakdown())
                 .generatedAt(rec.getGeneratedAt())
                 .build();
     }

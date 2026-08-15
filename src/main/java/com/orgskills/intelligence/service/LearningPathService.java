@@ -1,5 +1,6 @@
 package com.orgskills.intelligence.service;
 
+import com.orgskills.intelligence.dto.recommendation.CourseRecommendationScore;
 import com.orgskills.intelligence.dto.ld.CourseResponse;
 import com.orgskills.intelligence.dto.ld.LearningPathResponse;
 import com.orgskills.intelligence.dto.ld.LearningPathStepResponse;
@@ -52,6 +53,9 @@ public class LearningPathService {
     @Lazy
     private final RecommendationService recommendationService;
 
+    @Lazy
+    private final RecommendationScoringService recommendationScoringService;
+
     @Value("${app.learning-path.weekly-hours-pace:4}")
     private int weeklyHoursPace = 4;
 
@@ -78,10 +82,14 @@ public class LearningPathService {
                     .toList();
         }
 
+        List<CourseRecommendationScore> rankedScores = recommendationScoringService.scoreCoursesForEmployee(employeeId);
+        Map<Long, Double> courseScoreMap = rankedScores.stream()
+                .collect(Collectors.toMap(cs -> cs.getCourse().getId(), CourseRecommendationScore::getScore, (a, b) -> a));
+
         List<LearningPath> generatedPaths = new ArrayList<>();
         for (GapAnalysis gap : activeGaps) {
             Skill skill = gap.getSkill();
-            LearningPath path = generatePathForGap(employee, gap, skill);
+            LearningPath path = generatePathForGap(employee, gap, skill, courseScoreMap);
             generatedPaths.add(learningPathRepository.save(path));
         }
 
@@ -156,7 +164,7 @@ public class LearningPathService {
 
     // ── Generation Helper ───────────────────────────────────────────────────────
 
-    private LearningPath generatePathForGap(User employee, GapAnalysis gap, Skill targetSkill) {
+    private LearningPath generatePathForGap(User employee, GapAnalysis gap, Skill targetSkill, Map<Long, Double> courseScoreMap) {
         Optional<LearningPath> existingOpt = learningPathRepository.findByEmployeeIdAndTargetSkillId(employee.getId(), targetSkill.getId());
         LearningPath path;
 
@@ -180,8 +188,8 @@ public class LearningPathService {
         List<Course> filteredCourses = candidates.stream()
                 .filter(c -> c.getDifficulty() != null && allowedStages.contains(c.getDifficulty().toUpperCase()))
                 .sorted(Comparator.comparingInt((Course c) -> difficultyRank(c.getDifficulty()))
-                        .thenComparing((Course c) -> c.getIsInternal() != null && c.getIsInternal() ? 0 : 1)
-                        .thenComparing((Course c) -> c.getDurationHours() != null ? c.getDurationHours() : 0.0, Comparator.reverseOrder()))
+                        .thenComparing((Course c) -> courseScoreMap.getOrDefault(c.getId(), 0.0), Comparator.reverseOrder())
+                        .thenComparing((Course c) -> c.getIsInternal() != null && c.getIsInternal() ? 0 : 1))
                 .toList();
 
         Map<String, List<Course>> coursesByStage = filteredCourses.stream()

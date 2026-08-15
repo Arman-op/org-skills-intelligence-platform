@@ -63,6 +63,9 @@ class LearningPathServiceTest {
     @Mock
     private RecommendationService recommendationService;
 
+    @Mock
+    private RecommendationScoringService recommendationScoringService;
+
     @InjectMocks
     private LearningPathService learningPathService;
 

@@ -46,3 +46,13 @@ llm:
   mock:
     enabled: ${LLM_MOCK_ENABLED:true}
 
+recommendation:
+  scoring:
+    weight:
+      gap-severity: ${SCORE_WEIGHT_GAP_SEVERITY:0.35}
+      role-relevance: ${SCORE_WEIGHT_ROLE_RELEVANCE:0.25}
+      proficiency-fit: ${SCORE_WEIGHT_PROFICIENCY_FIT:0.20}
+      course-quality: ${SCORE_WEIGHT_COURSE_QUALITY:0.10}
+      recency: ${SCORE_WEIGHT_RECENCY:0.10}
+
+
