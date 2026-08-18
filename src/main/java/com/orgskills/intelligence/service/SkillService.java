@@ -28,7 +28,7 @@ public class SkillService {
         } else {
             skills = skillRepository.findAll();
         }
-        return skills.stream().map(this::toResponse).toList();
+        return skills.stream().map(this::toResponse).collect(java.util.stream.Collectors.toList());
     }
 
     public SkillResponse getById(Long id) {

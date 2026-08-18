@@ -32,7 +32,7 @@ public class RoleCompetencyService {
         } else {
             competencies = roleCompetencyRepository.findAll();
         }
-        return competencies.stream().map(this::toResponse).toList();
+        return competencies.stream().map(this::toResponse).collect(java.util.stream.Collectors.toList());
     }
 
     @Transactional
