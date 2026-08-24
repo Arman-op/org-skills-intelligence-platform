@@ -10,7 +10,6 @@ import com.orgskills.intelligence.exception.ValidationException;
 import com.orgskills.intelligence.repository.SkillRepository;
 import com.orgskills.intelligence.repository.UserRepository;
 import com.orgskills.intelligence.repository.UserSkillRepository;
-import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,15 +17,24 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class UserSkillService {
 
     private final UserRepository userRepository;
     private final SkillRepository skillRepository;
     private final UserSkillRepository userSkillRepository;
-
-    @Lazy
     private final GapAnalysisService gapAnalysisService;
+
+    public UserSkillService(
+            UserRepository userRepository,
+            SkillRepository skillRepository,
+            UserSkillRepository userSkillRepository,
+            @Lazy GapAnalysisService gapAnalysisService
+    ) {
+        this.userRepository = userRepository;
+        this.skillRepository = skillRepository;
+        this.userSkillRepository = userSkillRepository;
+        this.gapAnalysisService = gapAnalysisService;
+    }
 
     public List<UserSkillResponse> getUserSkills(Long userId) {
         if (!userRepository.existsById(userId)) {

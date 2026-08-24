@@ -19,7 +19,6 @@ import com.orgskills.intelligence.repository.LearningPathRepository;
 import com.orgskills.intelligence.repository.LearningPathStepRepository;
 import com.orgskills.intelligence.repository.UserRepository;
 import com.orgskills.intelligence.repository.UserSkillRepository;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Lazy;
@@ -36,7 +35,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class LearningPathService {
 
@@ -46,15 +44,31 @@ public class LearningPathService {
     private final LearningPathRepository learningPathRepository;
     private final LearningPathStepRepository learningPathStepRepository;
     private final UserSkillRepository userSkillRepository;
-
-    @Lazy
     private final GapAnalysisService gapAnalysisService;
-
-    @Lazy
     private final RecommendationService recommendationService;
-
-    @Lazy
     private final RecommendationScoringService recommendationScoringService;
+
+    public LearningPathService(
+            UserRepository userRepository,
+            GapAnalysisRepository gapAnalysisRepository,
+            CourseRepository courseRepository,
+            LearningPathRepository learningPathRepository,
+            LearningPathStepRepository learningPathStepRepository,
+            UserSkillRepository userSkillRepository,
+            @Lazy GapAnalysisService gapAnalysisService,
+            RecommendationService recommendationService,
+            RecommendationScoringService recommendationScoringService
+    ) {
+        this.userRepository = userRepository;
+        this.gapAnalysisRepository = gapAnalysisRepository;
+        this.courseRepository = courseRepository;
+        this.learningPathRepository = learningPathRepository;
+        this.learningPathStepRepository = learningPathStepRepository;
+        this.userSkillRepository = userSkillRepository;
+        this.gapAnalysisService = gapAnalysisService;
+        this.recommendationService = recommendationService;
+        this.recommendationScoringService = recommendationScoringService;
+    }
 
     @Value("${app.learning-path.weekly-hours-pace:4}")
     private int weeklyHoursPace = 4;
