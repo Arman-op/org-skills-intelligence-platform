@@ -19,7 +19,13 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.Instant;
+import java.time.LocalDate;
 
+/**
+ * A mentorship between a mentor and a mentee for a single target skill.
+ * Mentors are not modelled separately: any {@link User} with a higher
+ * {@link UserSkill} proficiency than the mentee can mentor for that skill.
+ */
 @Entity
 @Table(name = "mentorship_matches")
 @Getter
@@ -43,6 +49,13 @@ public class MentorshipMatch {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "target_skill_id", nullable = false)
     private Skill targetSkill;
+
+    @Column(length = 2000)
+    private String goal;
+
+    private LocalDate startDate;
+
+    private LocalDate endDate;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
