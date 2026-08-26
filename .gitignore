@@ -1,4 +1,8 @@
-﻿backend/target/
+/target/
+/.idea/
+*.iml
+/.vscode/
+backend/target/
 node_modules/
 frontend/node_modules/
 *.zip
