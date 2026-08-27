@@ -41,6 +41,9 @@ class GapAnalysisControllerTest {
     private GapAnalysisService gapAnalysisService;
 
     @MockBean
+    private com.orgskills.intelligence.service.HeatmapVisualizationService heatmapVisualizationService;
+
+    @MockBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @MockBean
