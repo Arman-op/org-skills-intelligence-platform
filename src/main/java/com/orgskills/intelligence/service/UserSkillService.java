@@ -10,19 +10,31 @@ import com.orgskills.intelligence.exception.ValidationException;
 import com.orgskills.intelligence.repository.SkillRepository;
 import com.orgskills.intelligence.repository.UserRepository;
 import com.orgskills.intelligence.repository.UserSkillRepository;
-import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
-@RequiredArgsConstructor
 public class UserSkillService {
 
     private final UserRepository userRepository;
     private final SkillRepository skillRepository;
     private final UserSkillRepository userSkillRepository;
+    private final GapAnalysisService gapAnalysisService;
+
+    public UserSkillService(
+            UserRepository userRepository,
+            SkillRepository skillRepository,
+            UserSkillRepository userSkillRepository,
+            @Lazy GapAnalysisService gapAnalysisService
+    ) {
+        this.userRepository = userRepository;
+        this.skillRepository = skillRepository;
+        this.userSkillRepository = userSkillRepository;
+        this.gapAnalysisService = gapAnalysisService;
+    }
 
     public List<UserSkillResponse> getUserSkills(Long userId) {
         if (!userRepository.existsById(userId)) {
@@ -51,7 +63,9 @@ public class UserSkillService {
         userSkill.setProficiencyLevel(request.getProficiencyLevel());
         userSkill.setRatingScore(request.getRatingScore());
 
-        return toResponse(userSkillRepository.save(userSkill));
+        UserSkill saved = userSkillRepository.save(userSkill);
+        triggerAdaptiveReRanking(userId);
+        return toResponse(saved);
     }
 
     @Transactional
@@ -67,7 +81,9 @@ public class UserSkillService {
 
         userSkill.setProficiencyLevel(request.getProficiencyLevel());
         userSkill.setRatingScore(request.getRatingScore());
-        return toResponse(userSkillRepository.save(userSkill));
+        UserSkill saved = userSkillRepository.save(userSkill);
+        triggerAdaptiveReRanking(userId);
+        return toResponse(saved);
     }
 
     @Transactional
@@ -78,6 +94,15 @@ public class UserSkillService {
             throw new ValidationException("UserSkill does not belong to user " + userId);
         }
         userSkillRepository.delete(userSkill);
+        triggerAdaptiveReRanking(userId);
+    }
+
+    private void triggerAdaptiveReRanking(Long userId) {
+        try {
+            gapAnalysisService.calculateAndFetchUserGaps(userId);
+        } catch (Exception ex) {
+            // Ignore optional recalculation failure if user has no role profile configured
+        }
     }
 
     private UserSkillResponse toResponse(UserSkill userSkill) {

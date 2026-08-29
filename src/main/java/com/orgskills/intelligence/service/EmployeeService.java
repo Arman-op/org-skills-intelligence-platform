@@ -67,6 +67,8 @@ public class EmployeeService {
     private final RecommendationService recommendationService;
     private final NotificationService notificationService;
     private final AuditLogService auditLogService;
+    @org.springframework.context.annotation.Lazy
+    private final LearningPathService learningPathService;
 
     // ── Profile CRUD ─────────────────────────────────────────────────────────────
 
@@ -249,6 +251,13 @@ public class EmployeeService {
                 recommendationService.generateRecommendations(userId);
             } catch (Exception ex) {
                 log.warn("Adaptive recommendation generation failed: {}", ex.getMessage());
+            }
+
+            // Learning path progress update: mark step completed
+            try {
+                learningPathService.onEnrollmentCompleted(userId, enrollment.getCourse().getId());
+            } catch (Exception ex) {
+                log.warn("Learning path step completion failed: {}", ex.getMessage());
             }
 
             notificationService.createNotification(
