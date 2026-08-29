@@ -123,7 +123,7 @@ public class EmployeeController {
             @PathVariable Long id,
             @Valid @RequestBody UpdateProgressRequest request) {
         Long userId = getUserId(authentication);
-        return ResponseEntity.ok(employeeService.updateProgress(userId, id, request.getProgressPercent()));
+        return ResponseEntity.ok(employeeService.updateProgress(userId, id, request.getProgress()));
     }
 
     @GetMapping("/enrollments")

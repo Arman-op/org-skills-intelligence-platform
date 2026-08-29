@@ -7,14 +7,14 @@ import com.orgskills.intelligence.dto.employee.CertificationRequest;
 import com.orgskills.intelligence.dto.employee.CertificationResponse;
 import com.orgskills.intelligence.dto.employee.EmployeeProfileRequest;
 import com.orgskills.intelligence.dto.employee.EmployeeProfileResponse;
+import com.orgskills.intelligence.dto.employee.EnrollmentRequest;
 import com.orgskills.intelligence.dto.employee.EnrollmentResponse;
+import com.orgskills.intelligence.dto.employee.UpdateProgressRequest;
 import com.orgskills.intelligence.dto.employee.MentorMatchResponse;
 import com.orgskills.intelligence.entity.Achievement;
 import com.orgskills.intelligence.entity.Assessment;
 import com.orgskills.intelligence.entity.Certification;
-import com.orgskills.intelligence.entity.Course;
 import com.orgskills.intelligence.entity.EmployeeProfile;
-import com.orgskills.intelligence.entity.Enrollment;
 import com.orgskills.intelligence.entity.MentorshipMatch;
 import com.orgskills.intelligence.entity.Skill;
 import com.orgskills.intelligence.entity.User;
@@ -22,7 +22,6 @@ import com.orgskills.intelligence.entity.UserSkill;
 import com.orgskills.intelligence.entity.enums.AchievementType;
 import com.orgskills.intelligence.entity.enums.AssessmentType;
 import com.orgskills.intelligence.entity.enums.CertificationStatus;
-import com.orgskills.intelligence.entity.enums.EnrollmentStatus;
 import com.orgskills.intelligence.entity.enums.MentorshipStatus;
 import com.orgskills.intelligence.entity.enums.NotificationType;
 import com.orgskills.intelligence.entity.enums.ProficiencyLevel;
@@ -31,9 +30,7 @@ import com.orgskills.intelligence.exception.ValidationException;
 import com.orgskills.intelligence.repository.AchievementRepository;
 import com.orgskills.intelligence.repository.AssessmentRepository;
 import com.orgskills.intelligence.repository.CertificationRepository;
-import com.orgskills.intelligence.repository.CourseRepository;
 import com.orgskills.intelligence.repository.EmployeeProfileRepository;
-import com.orgskills.intelligence.repository.EnrollmentRepository;
 import com.orgskills.intelligence.repository.MentorshipMatchRepository;
 import com.orgskills.intelligence.repository.SkillRepository;
 import com.orgskills.intelligence.repository.UserRepository;
@@ -58,17 +55,13 @@ public class EmployeeService {
     private final UserSkillRepository userSkillRepository;
     private final SkillRepository skillRepository;
     private final AssessmentRepository assessmentRepository;
-    private final CourseRepository courseRepository;
-    private final EnrollmentRepository enrollmentRepository;
     private final AchievementRepository achievementRepository;
     private final CertificationRepository certificationRepository;
     private final MentorshipMatchRepository mentorshipMatchRepository;
     private final GapAnalysisService gapAnalysisService;
-    private final RecommendationService recommendationService;
     private final NotificationService notificationService;
     private final AuditLogService auditLogService;
-    @org.springframework.context.annotation.Lazy
-    private final LearningPathService learningPathService;
+    private final TrainingProgressService trainingProgressService;
 
     // ── Profile CRUD ─────────────────────────────────────────────────────────────
 
@@ -192,93 +185,22 @@ public class EmployeeService {
 
     // ── Training Enrollment & Progress ──────────────────────────────────────────
 
+    // Enrolment, progress and the completion chain live in TrainingProgressService so that the
+    // self-service endpoints below and /api/enrollments share one implementation.
+
     @Transactional
     public EnrollmentResponse enrollCourse(Long userId, Long courseId) {
-        User employee = getUser(userId);
-        Course course = courseRepository.findById(courseId)
-                .orElseThrow(() -> new ResourceNotFoundException("Course not found for id: " + courseId));
-
-        Optional<Enrollment> existing = enrollmentRepository.findByEmployeeIdAndCourseId(userId, courseId);
-        if (existing.isPresent()) {
-            return toEnrollmentResponse(existing.get());
-        }
-
-        Enrollment enrollment = new Enrollment();
-        enrollment.setEmployee(employee);
-        enrollment.setCourse(course);
-        enrollment.setStatus(EnrollmentStatus.IN_PROGRESS);
-        enrollment.setProgressPercent(0.0);
-
-        Enrollment saved = enrollmentRepository.save(enrollment);
-
-        notificationService.createNotification(
-                employee,
-                "Course Enrollment Confirmed",
-                "You have successfully enrolled in " + course.getTitle(),
-                NotificationType.TRAINING_RECOMMENDATION
-        );
-
-        auditLogService.logEvent(userId, employee.getEmail(), "ENROLL_COURSE", "Enrollment", saved.getId().toString(), "Enrolled in course: " + course.getTitle());
-        return toEnrollmentResponse(saved);
+        return trainingProgressService.enroll(userId, new EnrollmentRequest(courseId));
     }
 
     @Transactional
-    public EnrollmentResponse updateProgress(Long userId, Long enrollmentId, Double progressPercent) {
-        Enrollment enrollment = enrollmentRepository.findById(enrollmentId)
-                .orElseThrow(() -> new ResourceNotFoundException("Enrollment not found for id: " + enrollmentId));
-
-        if (!enrollment.getEmployee().getId().equals(userId)) {
-            throw new ValidationException("Access denied. Enrollment belongs to another employee.");
-        }
-
-        double newProgress = Math.max(0.0, Math.min(100.0, progressPercent));
-        enrollment.setProgressPercent(newProgress);
-
-        if (newProgress >= 100.0 && enrollment.getStatus() != EnrollmentStatus.COMPLETED) {
-            enrollment.setStatus(EnrollmentStatus.COMPLETED);
-            enrollment.setCompletedAt(Instant.now());
-
-            // Auto-generate Achievement
-            Achievement achievement = new Achievement();
-            achievement.setEmployee(enrollment.getEmployee());
-            achievement.setType(AchievementType.COURSE_COMPLETED);
-            achievement.setTitle("Course Completed: " + enrollment.getCourse().getTitle());
-            achievement.setDescription("Successfully completed 100% of " + enrollment.getCourse().getTitle());
-            achievementRepository.save(achievement);
-
-            // Adaptive recommendations: re-trigger recommendation service
-            try {
-                recommendationService.generateRecommendations(userId);
-            } catch (Exception ex) {
-                log.warn("Adaptive recommendation generation failed: {}", ex.getMessage());
-            }
-
-            // Learning path progress update: mark step completed
-            try {
-                learningPathService.onEnrollmentCompleted(userId, enrollment.getCourse().getId());
-            } catch (Exception ex) {
-                log.warn("Learning path step completion failed: {}", ex.getMessage());
-            }
-
-            notificationService.createNotification(
-                    enrollment.getEmployee(),
-                    "Achievement Unlocked!",
-                    "Congratulations on completing " + enrollment.getCourse().getTitle() + "!",
-                    NotificationType.SYSTEM_ALERT
-            );
-        } else if (newProgress > 0.0 && enrollment.getStatus() == EnrollmentStatus.NOT_STARTED) {
-            enrollment.setStatus(EnrollmentStatus.IN_PROGRESS);
-        }
-
-        Enrollment saved = enrollmentRepository.save(enrollment);
-        return toEnrollmentResponse(saved);
+    public EnrollmentResponse updateProgress(Long userId, Long enrollmentId, Double progress) {
+        return trainingProgressService.updateProgress(userId, enrollmentId, new UpdateProgressRequest(progress));
     }
 
     @Transactional(readOnly = true)
     public List<EnrollmentResponse> getEnrollments(Long userId) {
-        return enrollmentRepository.findByEmployeeId(userId).stream()
-                .map(this::toEnrollmentResponse)
-                .toList();
+        return trainingProgressService.getEnrollments(userId, userId);
     }
 
     // ── Achievements & Certifications ──────────────────────────────────────────
@@ -497,20 +419,6 @@ public class EmployeeService {
                 .build();
     }
 
-    private EnrollmentResponse toEnrollmentResponse(Enrollment e) {
-        return EnrollmentResponse.builder()
-                .id(e.getId())
-                .employeeId(e.getEmployee().getId())
-                .employeeName(e.getEmployee().getFullName())
-                .courseId(e.getCourse().getId())
-                .courseTitle(e.getCourse().getTitle())
-                .provider(e.getCourse().getProvider())
-                .status(e.getStatus())
-                .progressPercent(e.getProgressPercent())
-                .enrolledAt(e.getEnrolledAt())
-                .completedAt(e.getCompletedAt())
-                .build();
-    }
 
     private AchievementResponse toAchievementResponse(Achievement a) {
         return AchievementResponse.builder()
