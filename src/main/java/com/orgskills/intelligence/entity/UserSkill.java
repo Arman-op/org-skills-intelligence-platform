@@ -9,6 +9,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -19,9 +20,14 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "user_skills", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_user_skill", columnNames = {"user_id", "skill_id"})
-})
+@Table(name = "user_skills",
+        uniqueConstraints = {
+                @UniqueConstraint(name = "uk_user_skill", columnNames = {"user_id", "skill_id"})
+        },
+        // Supports the expert-directory lookup, which filters by skill and proficiency.
+        indexes = {
+                @Index(name = "idx_user_skill_skill_proficiency", columnList = "skill_id, proficiency_level")
+        })
 @Getter
 @Setter
 @NoArgsConstructor
