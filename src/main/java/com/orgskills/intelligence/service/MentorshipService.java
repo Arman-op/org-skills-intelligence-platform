@@ -173,6 +173,37 @@ public class MentorshipService {
         User mentor = getUser(request.getMentorId());
         Skill skill = getSkill(request.getSkillId());
 
+        requirePairingIsSound(mentee, mentor, skill);
+
+        MentorshipMatch mentorship = new MentorshipMatch();
+        mentorship.setMentee(mentee);
+        mentorship.setMentor(mentor);
+        mentorship.setTargetSkill(skill);
+        mentorship.setGoal(request.getGoal());
+        mentorship.setStartDate(request.getStartDate());
+        mentorship.setEndDate(request.getEndDate());
+        mentorship.setStatus(MentorshipStatus.REQUESTED);
+
+        MentorshipMatch saved = mentorshipMatchRepository.save(mentorship);
+
+        notificationService.createNotification(
+                mentor,
+                "Mentorship Request",
+                mentee.getFullName() + " has requested your mentorship for " + skill.getName()
+                        + (request.getGoal() != null ? ". Goal: " + request.getGoal() : ""),
+                NotificationType.MENTORSHIP_REQUEST
+        );
+
+        return toMentorshipResponse(saved);
+    }
+
+    /**
+     * The rules a new mentorship must satisfy however it is created — asked for by the mentee, or
+     * arranged by their manager. Pairing somebody with a mentor no more skilled than they are, or
+     * stacking a second mentorship on a skill they are already being mentored in, is a mistake
+     * whoever makes it.
+     */
+    private void requirePairingIsSound(User mentee, User mentor, Skill skill) {
         if (Boolean.FALSE.equals(mentor.getActive())) {
             throw new ValidationException("Mentor " + mentor.getFullName() + " is not an active employee");
         }
@@ -196,25 +227,39 @@ public class MentorshipService {
             throw new ValidationException(mentor.getFullName() + " is at " + mentorLevel + " for "
                     + skill.getName() + ", which is not above the mentee level of " + menteeLevel);
         }
+    }
+
+    /**
+     * A manager pairs an employee with a mentor. This skips the request-and-accept handshake — the
+     * pairing is a management decision, not an invitation — but applies the same pairing rules.
+     */
+    @Transactional
+    public MentorshipResponse assignMentorship(User assigner, Long menteeId, Long mentorId, Long skillId) {
+        User mentee = getUser(menteeId);
+        User mentor = getUser(mentorId);
+        Skill skill = getSkill(skillId);
+
+        if (mentee.getId().equals(mentor.getId())) {
+            throw new ValidationException("Cannot assign somebody as their own mentor");
+        }
+        requirePairingIsSound(mentee, mentor, skill);
 
         MentorshipMatch mentorship = new MentorshipMatch();
         mentorship.setMentee(mentee);
         mentorship.setMentor(mentor);
         mentorship.setTargetSkill(skill);
-        mentorship.setGoal(request.getGoal());
-        mentorship.setStartDate(request.getStartDate());
-        mentorship.setEndDate(request.getEndDate());
-        mentorship.setStatus(MentorshipStatus.REQUESTED);
-
+        mentorship.setStatus(MentorshipStatus.ACTIVE);
+        mentorship.setStartDate(LocalDate.now());
         MentorshipMatch saved = mentorshipMatchRepository.save(mentorship);
 
-        notificationService.createNotification(
-                mentor,
-                "Mentorship Request",
-                mentee.getFullName() + " has requested your mentorship for " + skill.getName()
-                        + (request.getGoal() != null ? ". Goal: " + request.getGoal() : ""),
-                NotificationType.MENTORSHIP_REQUEST
-        );
+        notificationService.createNotification(mentee, "Mentorship Assigned",
+                assigner.getFullName() + " has paired you with mentor " + mentor.getFullName()
+                        + " for " + skill.getName(),
+                NotificationType.MENTORSHIP_REQUEST);
+        notificationService.createNotification(mentor, "New Mentee Assigned",
+                assigner.getFullName() + " assigned " + mentee.getFullName()
+                        + " to you for mentorship in " + skill.getName(),
+                NotificationType.MENTORSHIP_REQUEST);
 
         return toMentorshipResponse(saved);
     }
