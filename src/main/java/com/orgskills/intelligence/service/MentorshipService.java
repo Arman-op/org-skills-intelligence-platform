@@ -6,10 +6,12 @@ import com.orgskills.intelligence.dto.mentorship.MentorshipRequest;
 import com.orgskills.intelligence.dto.mentorship.MentorshipResponse;
 import com.orgskills.intelligence.dto.mentorship.RecommendedMentorResponse;
 import com.orgskills.intelligence.entity.GapAnalysis;
+import com.orgskills.intelligence.entity.Achievement;
 import com.orgskills.intelligence.entity.MentorshipMatch;
 import com.orgskills.intelligence.entity.Skill;
 import com.orgskills.intelligence.entity.User;
 import com.orgskills.intelligence.entity.UserSkill;
+import com.orgskills.intelligence.entity.enums.AchievementType;
 import com.orgskills.intelligence.entity.enums.MentorshipStatus;
 import com.orgskills.intelligence.entity.enums.NotificationType;
 import com.orgskills.intelligence.entity.enums.ProficiencyLevel;
@@ -18,6 +20,7 @@ import com.orgskills.intelligence.exception.ResourceNotFoundException;
 import com.orgskills.intelligence.exception.UnauthorizedException;
 import com.orgskills.intelligence.exception.ValidationException;
 import com.orgskills.intelligence.repository.GapAnalysisRepository;
+import com.orgskills.intelligence.repository.AchievementRepository;
 import com.orgskills.intelligence.repository.MentorshipMatchRepository;
 import com.orgskills.intelligence.repository.SkillRepository;
 import com.orgskills.intelligence.repository.UserRepository;
@@ -53,6 +56,7 @@ public class MentorshipService {
     private final UserSkillRepository userSkillRepository;
     private final GapAnalysisRepository gapAnalysisRepository;
     private final MentorshipMatchRepository mentorshipMatchRepository;
+    private final AchievementRepository achievementRepository;
     private final NotificationService notificationService;
 
     // ── Mentor matching ─────────────────────────────────────────────────────────
@@ -241,6 +245,45 @@ public class MentorshipService {
                         + saved.getTargetSkill().getName(),
                 NotificationType.INFO
         );
+
+        return toMentorshipResponse(saved);
+    }
+
+    /**
+     * Either participant closes out an ACTIVE mentorship. The mentee earns the achievement, since
+     * they are the one who did the learning.
+     */
+    @Transactional
+    public MentorshipResponse completeMentorship(Long mentorshipId, Long actingUserId) {
+        MentorshipMatch mentorship = getMentorship(mentorshipId);
+        if (!mentorship.getMentee().getId().equals(actingUserId)
+                && !mentorship.getMentor().getId().equals(actingUserId)) {
+            throw new ValidationException("Access denied. You are not a participant in this mentorship.");
+        }
+        if (mentorship.getStatus() != MentorshipStatus.ACTIVE) {
+            throw new ValidationException("Only an ACTIVE mentorship can be completed; this one is "
+                    + mentorship.getStatus());
+        }
+
+        mentorship.setStatus(MentorshipStatus.COMPLETED);
+        if (mentorship.getEndDate() == null) {
+            mentorship.setEndDate(LocalDate.now());
+        }
+        MentorshipMatch saved = mentorshipMatchRepository.save(mentorship);
+
+        Achievement achievement = new Achievement();
+        achievement.setEmployee(saved.getMentee());
+        achievement.setType(AchievementType.MENTORSHIP_COMPLETED);
+        achievement.setTitle("Mentorship Completed: " + saved.getTargetSkill().getName());
+        achievement.setDescription("Completed mentorship with " + saved.getMentor().getFullName());
+        achievementRepository.save(achievement);
+
+        notificationService.createNotification(
+                saved.getMentee(),
+                "Mentorship completed",
+                "Your mentorship with " + saved.getMentor().getFullName() + " for "
+                        + saved.getTargetSkill().getName() + " is complete.",
+                NotificationType.INFO);
 
         return toMentorshipResponse(saved);
     }
