@@ -1,15 +1,19 @@
 package com.orgskills.intelligence.integration;
 
+import com.orgskills.intelligence.dto.mentorship.MentorshipMatchRequest;
 import com.orgskills.intelligence.dto.mentorship.MentorshipRequest;
 import com.orgskills.intelligence.dto.mentorship.MentorshipResponse;
+import com.orgskills.intelligence.entity.GapAnalysis;
 import com.orgskills.intelligence.entity.RoleCompetency;
 import com.orgskills.intelligence.entity.Skill;
 import com.orgskills.intelligence.entity.User;
 import com.orgskills.intelligence.entity.UserSkill;
 import com.orgskills.intelligence.entity.enums.MentorshipStatus;
 import com.orgskills.intelligence.entity.enums.ProficiencyLevel;
+import com.orgskills.intelligence.entity.enums.RiskSeverity;
 import com.orgskills.intelligence.entity.enums.Role;
 import com.orgskills.intelligence.exception.ValidationException;
+import com.orgskills.intelligence.repository.GapAnalysisRepository;
 import com.orgskills.intelligence.repository.RoleCompetencyRepository;
 import com.orgskills.intelligence.repository.SkillRepository;
 import com.orgskills.intelligence.repository.UserRepository;
@@ -58,6 +62,9 @@ class MentorshipRouteParityIntegrationTest {
 
     @Autowired
     private RoleCompetencyRepository roleCompetencyRepository;
+
+    @Autowired
+    private GapAnalysisRepository gapAnalysisRepository;
 
     private User employee;
     private User mentor;
@@ -167,6 +174,29 @@ class MentorshipRouteParityIntegrationTest {
         assertThat(employeeService.getAvailableMentors(employee.getId(), rust.getId()))
                 .usingRecursiveComparison()
                 .isEqualTo(mentorshipService.findRecommendedMentors(employee.getId(), rust.getId()));
+    }
+
+    @Test
+    @DisplayName("The legacy auto-match route also refuses to stack a second mentorship")
+    void autoMatchRefusesADuplicateActiveMentorship() {
+        GapAnalysis gap = new GapAnalysis();
+        gap.setUser(employee);
+        gap.setSkill(rust);
+        gap.setTargetScore((double) ProficiencyLevel.EXPERT.getScore());
+        gap.setCurrentScore((double) ProficiencyLevel.INTERMEDIATE.getScore());
+        gap.setGapScore(3.0);
+        gap.setRiskSeverity(RiskSeverity.CRITICAL);
+        gap.setMissingSkill(false);
+        gapAnalysisRepository.save(gap);
+
+        MentorshipMatchRequest request = new MentorshipMatchRequest();
+        request.setMenteeId(employee.getId());
+        request.setSkillId(rust.getId());
+        assertThat(mentorshipService.createMatch(request)).isNotNull();
+
+        assertThatThrownBy(() -> mentorshipService.createMatch(request))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("already pending");
     }
 
     // ── Fixtures ────────────────────────────────────────────────────────────────

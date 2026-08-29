@@ -393,6 +393,8 @@ public class MentorshipService {
         }
 
         User mentor = expert.get().getUser();
+        requirePairingIsSound(mentee, mentor, skill);
+
         MentorshipMatch match = new MentorshipMatch();
         match.setMentee(mentee);
         match.setMentor(mentor);
