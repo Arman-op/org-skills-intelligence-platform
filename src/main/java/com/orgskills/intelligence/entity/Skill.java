@@ -1,5 +1,6 @@
 package com.orgskills.intelligence.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -36,15 +37,19 @@ public class Skill {
     @Column(length = 2000)
     private String description;
 
+    @JsonIgnore
     @OneToMany(mappedBy = "skill")
     private List<UserSkill> userSkills = new ArrayList<>();
 
+    @JsonIgnore
     @OneToMany(mappedBy = "skill")
     private List<RoleCompetency> roleCompetencies = new ArrayList<>();
 
+    @JsonIgnore
     @OneToMany(mappedBy = "skill")
     private List<GapAnalysis> gapAnalyses = new ArrayList<>();
 
+    @JsonIgnore
     @OneToMany(mappedBy = "targetSkill")
     private List<MentorshipMatch> mentorshipMatches = new ArrayList<>();
 }

@@ -16,7 +16,7 @@ import com.orgskills.intelligence.repository.GapAnalysisRepository;
 import com.orgskills.intelligence.repository.RoleCompetencyRepository;
 import com.orgskills.intelligence.repository.UserRepository;
 import com.orgskills.intelligence.repository.UserSkillRepository;
-import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,7 +28,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
-@RequiredArgsConstructor
 public class GapAnalysisService {
 
     private final UserRepository userRepository;
@@ -37,6 +36,25 @@ public class GapAnalysisService {
     private final GapAnalysisRepository gapAnalysisRepository;
     private final NotificationService notificationService;
     private final RecommendationService recommendationService;
+    private final LearningPathService learningPathService;
+
+    public GapAnalysisService(
+            UserRepository userRepository,
+            UserSkillRepository userSkillRepository,
+            RoleCompetencyRepository roleCompetencyRepository,
+            GapAnalysisRepository gapAnalysisRepository,
+            NotificationService notificationService,
+            RecommendationService recommendationService,
+            @Lazy LearningPathService learningPathService
+    ) {
+        this.userRepository = userRepository;
+        this.userSkillRepository = userSkillRepository;
+        this.roleCompetencyRepository = roleCompetencyRepository;
+        this.gapAnalysisRepository = gapAnalysisRepository;
+        this.notificationService = notificationService;
+        this.recommendationService = recommendationService;
+        this.learningPathService = learningPathService;
+    }
 
     @Transactional
     public List<GapAnalysisResponse> calculateAndFetchUserGaps(Long userId) {
@@ -62,6 +80,12 @@ public class GapAnalysisService {
 
         // Auto-regenerate recommendations whenever gaps are recalculated
         recommendationService.generateRecommendations(userId);
+
+        try {
+            learningPathService.onGapsUpdated(userId, savedGaps);
+        } catch (Exception ex) {
+            // Ignore optional hook failure
+        }
 
         return savedGaps.stream().map(this::toResponse).toList();
     }

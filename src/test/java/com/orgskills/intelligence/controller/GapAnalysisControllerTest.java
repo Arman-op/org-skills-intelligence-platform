@@ -8,6 +8,7 @@ import com.orgskills.intelligence.entity.enums.RiskSeverity;
 import com.orgskills.intelligence.security.JwtAuthenticationFilter;
 import com.orgskills.intelligence.security.JwtTokenProvider;
 import com.orgskills.intelligence.service.GapAnalysisService;
+import com.orgskills.intelligence.service.HeatmapVisualizationService;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -41,7 +42,7 @@ class GapAnalysisControllerTest {
     private GapAnalysisService gapAnalysisService;
 
     @MockBean
-    private com.orgskills.intelligence.service.HeatmapVisualizationService heatmapVisualizationService;
+    private HeatmapVisualizationService heatmapVisualizationService;
 
     @MockBean
     private JwtAuthenticationFilter jwtAuthenticationFilter;

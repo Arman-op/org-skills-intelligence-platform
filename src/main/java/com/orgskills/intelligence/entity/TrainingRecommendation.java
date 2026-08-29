@@ -52,6 +52,9 @@ public class TrainingRecommendation {
     @Column(nullable = false)
     private Double relevanceScore = 0.0;
 
+    @Column(length = 2000)
+    private String scoreBreakdown;
+
     @Column(nullable = false, updatable = false)
     private LocalDateTime generatedAt;
 

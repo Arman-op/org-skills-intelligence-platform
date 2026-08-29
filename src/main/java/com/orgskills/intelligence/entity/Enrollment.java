@@ -1,6 +1,7 @@
 package com.orgskills.intelligence.entity;
 
 import com.orgskills.intelligence.entity.enums.EnrollmentStatus;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -11,14 +12,34 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
+/**
+ * An employee's enrolment in one training course. {@code progress} is the overall percentage
+ * for the course; the finer-grained per-topic breakdown lives in {@link LearningMilestone}.
+ *
+ * <p>There is deliberately no unique constraint on (employee, course): re-taking a course after
+ * it has been completed or has expired is legitimate. Only a duplicate <em>active</em> enrolment
+ * is rejected, which the service enforces.
+ */
 @Entity
 @Table(name = "enrollments")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class Enrollment {
 
     @Id
@@ -29,6 +50,7 @@ public class Enrollment {
     @JoinColumn(name = "employee_id", nullable = false)
     private User employee;
 
+    /** The training this enrolment is for; surfaced as {@code trainingId} on the API. */
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "course_id", nullable = false)
     private Course course;
@@ -38,103 +60,32 @@ public class Enrollment {
     private EnrollmentStatus status = EnrollmentStatus.NOT_STARTED;
 
     @Column(nullable = false)
-    private Double progressPercent = 0.0;
+    private Double progress = 0.0;
 
-    @Column(nullable = false, updatable = false)
-    private Instant enrolledAt;
+    @Column(name = "start_date", nullable = false, updatable = false)
+    private Instant startDate;
 
-    private Instant completedAt;
+    @Column(name = "completion_date")
+    private Instant completionDate;
 
     @Column(nullable = false)
     private Instant lastProgressUpdateAt;
 
-    public Enrollment() {
-    }
-
-    public Enrollment(Long id, User employee, Course course, EnrollmentStatus status, Double progressPercent, Instant enrolledAt, Instant completedAt, Instant lastProgressUpdateAt) {
-        this.id = id;
-        this.employee = employee;
-        this.course = course;
-        this.status = status;
-        this.progressPercent = progressPercent;
-        this.enrolledAt = enrolledAt;
-        this.completedAt = completedAt;
-        this.lastProgressUpdateAt = lastProgressUpdateAt;
-    }
+    @OneToMany(mappedBy = "enrollment", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("sequence ASC")
+    private List<LearningMilestone> milestones = new ArrayList<>();
 
     @PrePersist
     public void prePersist() {
         Instant now = Instant.now();
-        this.enrolledAt = now;
+        if (this.startDate == null) {
+            this.startDate = now;
+        }
         this.lastProgressUpdateAt = now;
     }
 
     @PreUpdate
     public void preUpdate() {
         this.lastProgressUpdateAt = Instant.now();
-    }
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public User getEmployee() {
-        return employee;
-    }
-
-    public void setEmployee(User employee) {
-        this.employee = employee;
-    }
-
-    public Course getCourse() {
-        return course;
-    }
-
-    public void setCourse(Course course) {
-        this.course = course;
-    }
-
-    public EnrollmentStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(EnrollmentStatus status) {
-        this.status = status;
-    }
-
-    public Double getProgressPercent() {
-        return progressPercent;
-    }
-
-    public void setProgressPercent(Double progressPercent) {
-        this.progressPercent = progressPercent;
-    }
-
-    public Instant getEnrolledAt() {
-        return enrolledAt;
-    }
-
-    public void setEnrolledAt(Instant enrolledAt) {
-        this.enrolledAt = enrolledAt;
-    }
-
-    public Instant getCompletedAt() {
-        return completedAt;
-    }
-
-    public void setCompletedAt(Instant completedAt) {
-        this.completedAt = completedAt;
-    }
-
-    public Instant getLastProgressUpdateAt() {
-        return lastProgressUpdateAt;
-    }
-
-    public void setLastProgressUpdateAt(Instant lastProgressUpdateAt) {
-        this.lastProgressUpdateAt = lastProgressUpdateAt;
     }
 }

@@ -21,5 +21,6 @@ public class RecommendationResponse {
     private Integer priorityRank;
     private String sourceGapSeverity;
     private Double relevanceScore;
+    private String scoreBreakdown;
     private LocalDateTime generatedAt;
 }

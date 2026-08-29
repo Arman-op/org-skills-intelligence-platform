@@ -4,6 +4,7 @@ import com.orgskills.intelligence.entity.Certification;
 import com.orgskills.intelligence.entity.Course;
 import com.orgskills.intelligence.entity.Enrollment;
 import com.orgskills.intelligence.entity.GapSnapshot;
+import com.orgskills.intelligence.entity.LearningMilestone;
 import com.orgskills.intelligence.entity.RoleCompetency;
 import com.orgskills.intelligence.entity.Skill;
 import com.orgskills.intelligence.entity.User;
@@ -16,6 +17,7 @@ import com.orgskills.intelligence.repository.CertificationRepository;
 import com.orgskills.intelligence.repository.CourseRepository;
 import com.orgskills.intelligence.repository.EnrollmentRepository;
 import com.orgskills.intelligence.repository.GapSnapshotRepository;
+import com.orgskills.intelligence.repository.LearningMilestoneRepository;
 import com.orgskills.intelligence.repository.RoleCompetencyRepository;
 import com.orgskills.intelligence.repository.SkillRepository;
 import com.orgskills.intelligence.repository.UserRepository;
@@ -44,6 +46,7 @@ public class DataSeeder implements CommandLineRunner {
     private final EnrollmentRepository enrollmentRepository;
     private final CertificationRepository certificationRepository;
     private final GapSnapshotRepository gapSnapshotRepository;
+    private final LearningMilestoneRepository learningMilestoneRepository;
 
     @Override
     @Transactional
@@ -215,6 +218,23 @@ public class DataSeeder implements CommandLineRunner {
         c2.setIsInternal(false);
         c2.setExternalUrl("https://coursera.org/learn/java-concurrency");
         courseRepository.save(c2);
+
+        // Course-level milestone templates. Enrolling copies these into learner-owned rows, so a
+        // course reads as "Core Java: Completed, Multithreading: In Progress" rather than one number.
+        seedMilestoneTemplate(c1, "Spring Core & Dependency Injection", "Spring Data JPA", "Spring Security", "Microservices & Resilience");
+        seedMilestoneTemplate(c2, "Core Java", "Multithreading", "JVM Memory Model", "GC Tuning");
+    }
+
+    private void seedMilestoneTemplate(Course training, String... titles) {
+        for (int i = 0; i < titles.length; i++) {
+            LearningMilestone milestone = new LearningMilestone();
+            milestone.setTraining(training);
+            milestone.setEnrollment(null);
+            milestone.setTitle(titles[i]);
+            milestone.setSequence(i + 1);
+            milestone.setCompletionPercentage(0.0);
+            learningMilestoneRepository.save(milestone);
+        }
     }
 
     private void seedEnrollmentsAndCertifications() {
@@ -225,8 +245,9 @@ public class DataSeeder implements CommandLineRunner {
             enrollment.setEmployee(alice);
             enrollment.setCourse(courses.get(0));
             enrollment.setStatus(EnrollmentStatus.IN_PROGRESS);
-            enrollment.setProgressPercent(45.0);
-            enrollmentRepository.save(enrollment);
+            enrollment.setProgress(45.0);
+            Enrollment savedEnrollment = enrollmentRepository.save(enrollment);
+            copyMilestoneTemplate(savedEnrollment, 100.0, 40.0);
         }
 
         Certification cert = new Certification();
@@ -237,6 +258,22 @@ public class DataSeeder implements CommandLineRunner {
         cert.setExpiresAt(java.time.LocalDate.now().plusDays(25)); // Expiring soon!
         cert.setStatus(CertificationStatus.EXPIRING_SOON);
         certificationRepository.save(cert);
+    }
+
+    /** Gives the seeded enrolment a per-topic breakdown, so the demo data shows mixed milestones. */
+    private void copyMilestoneTemplate(Enrollment enrollment, double... completionByIndex) {
+        List<LearningMilestone> template = learningMilestoneRepository
+                .findByTrainingIdAndEnrollmentIsNullOrderBySequenceAsc(enrollment.getCourse().getId());
+        for (int i = 0; i < template.size(); i++) {
+            LearningMilestone source = template.get(i);
+            LearningMilestone copy = new LearningMilestone();
+            copy.setTraining(source.getTraining());
+            copy.setEnrollment(enrollment);
+            copy.setTitle(source.getTitle());
+            copy.setSequence(source.getSequence());
+            copy.setCompletionPercentage(i < completionByIndex.length ? completionByIndex[i] : 0.0);
+            learningMilestoneRepository.save(copy);
+        }
     }
 
     private void seedGapSnapshots() {

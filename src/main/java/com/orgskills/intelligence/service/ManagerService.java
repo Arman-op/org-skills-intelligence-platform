@@ -213,7 +213,7 @@ public class ManagerService {
                 .count();
 
         double avgProgress = enrollments.stream()
-                .mapToDouble(Enrollment::getProgressPercent)
+                .mapToDouble(Enrollment::getProgress)
                 .average()
                 .orElse(0.0);
 
@@ -241,7 +241,7 @@ public class ManagerService {
         Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new ResourceNotFoundException("Course not found for id: " + courseId));
 
-        Enrollment enrollment = enrollmentRepository.findByEmployeeIdAndCourseId(employeeId, courseId)
+        Enrollment enrollment = enrollmentRepository.findFirstByEmployeeIdAndCourseIdOrderByStartDateDesc(employeeId, courseId)
                 .orElseGet(() -> {
                     Enrollment e = new Enrollment();
                     e.setEmployee(employee);
@@ -309,7 +309,7 @@ public class ManagerService {
         List<GapAnalysis> gaps = gapAnalysisRepository.findByUserIdOrderByGapScoreDesc(employee.getId());
 
         List<Enrollment> enrollments = enrollmentRepository.findByEmployeeId(employee.getId());
-        double avgProgress = enrollments.stream().mapToDouble(Enrollment::getProgressPercent).average().orElse(0.0);
+        double avgProgress = enrollments.stream().mapToDouble(Enrollment::getProgress).average().orElse(0.0);
 
         List<Assessment> assessments = assessmentRepository.findBySubmittedForIdOrderBySubmittedAtDesc(employee.getId());
         Instant lastAssessment = assessments.isEmpty() ? null : assessments.get(0).getSubmittedAt();

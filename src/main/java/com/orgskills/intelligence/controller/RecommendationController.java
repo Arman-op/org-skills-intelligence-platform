@@ -1,6 +1,8 @@
 package com.orgskills.intelligence.controller;
 
+import com.orgskills.intelligence.dto.recommendation.CourseRecommendationScore;
 import com.orgskills.intelligence.dto.recommendation.RecommendationResponse;
+import com.orgskills.intelligence.service.RecommendationScoringService;
 import com.orgskills.intelligence.service.RecommendationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +20,7 @@ import java.util.List;
 public class RecommendationController {
 
     private final RecommendationService recommendationService;
+    private final RecommendationScoringService recommendationScoringService;
 
     /**
      * Generates fresh AI-powered training recommendations from the employee's
@@ -36,5 +39,14 @@ public class RecommendationController {
     @GetMapping("/{employeeId}")
     public ResponseEntity<List<RecommendationResponse>> getByEmployee(@PathVariable Long employeeId) {
         return ResponseEntity.ok(recommendationService.getByEmployee(employeeId));
+    }
+
+    /**
+     * Returns the full, unified ranked list of course recommendation scores
+     * for the given employee, complete with score breakdowns for transparency.
+     */
+    @GetMapping("/{employeeId}/ranked")
+    public ResponseEntity<List<CourseRecommendationScore>> getRankedRecommendations(@PathVariable Long employeeId) {
+        return ResponseEntity.ok(recommendationScoringService.scoreCoursesForEmployee(employeeId));
     }
 }
